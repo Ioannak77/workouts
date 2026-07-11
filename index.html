@@ -24,7 +24,7 @@
   }
   *{box-sizing:border-box; -webkit-tap-highlight-color:transparent;}
   html,body{margin:0;padding:0;}
-  body{background:var(--bg); color:var(--text); font-family:'Inter',system-ui,sans-serif; min-height:100vh; padding-bottom:150px;}
+  body{background:var(--bg); color:var(--text); font-family:'Inter',system-ui,sans-serif; min-height:100vh; padding-bottom:32px;}
   ::selection{background:var(--moss); color:var(--bg);}
 
   header{padding:28px 20px 16px; border-bottom:1px solid var(--border);}
@@ -41,12 +41,35 @@
   .section-title{font-family:'Oswald',sans-serif; font-size:13px; letter-spacing:.12em; text-transform:uppercase; color:var(--text-dim); margin:0 0 10px; display:flex; justify-content:space-between; align-items:center;}
   .empty{border:1px dashed var(--border); border-radius:12px; padding:24px 16px; text-align:center; color:var(--text-dim); font-size:14px; line-height:1.5;}
 
+  /* Workout timer bar */
+  .workout-bar{display:none; align-items:center; justify-content:space-between; margin:14px 20px 0; background:var(--surface); border:1px solid var(--moss); border-radius:10px; padding:10px 14px;}
+  .workout-timer-text{font-family:'JetBrains Mono',monospace; font-size:16px; font-weight:700; color:var(--amber);}
+  .finish-workout-btn{background:var(--moss); color:var(--bg); border:none; border-radius:8px; padding:8px 14px; font-weight:600; font-size:12px; text-transform:uppercase; letter-spacing:.03em; cursor:pointer;}
+
+  /* Repeat previous workout */
+  .repeat-btn{width:100%; background:var(--surface-2); border:1px dashed var(--moss); color:var(--moss); border-radius:10px; padding:10px; font-size:13px; font-weight:600; cursor:pointer; margin-bottom:10px;}
+
+  /* Finish workout modal */
+  .finish-modal{position:fixed; inset:0; background:rgba(0,0,0,0.85); display:none; align-items:center; justify-content:center; z-index:110; padding:24px;}
+  .finish-modal.open{display:flex;}
+  .finish-modal-content{background:var(--surface); border:1px solid var(--border); border-radius:16px; padding:24px 20px; max-width:340px; width:100%; position:relative;}
+  .finish-title{font-family:'Oswald',sans-serif; font-size:20px; font-weight:700; text-transform:uppercase; text-align:center; margin-bottom:16px;}
+  .finish-stat-grid{display:grid; grid-template-columns:1fr 1fr; gap:1px; background:var(--border); border:1px solid var(--border); border-radius:10px; overflow:hidden; margin-bottom:14px;}
+  .finish-stat{background:var(--surface-2); padding:12px; text-align:center;}
+  .finish-stat-num{font-family:'JetBrains Mono',monospace; font-size:20px; font-weight:700; color:var(--amber);}
+  .finish-stat-lbl{font-size:10px; text-transform:uppercase; letter-spacing:.06em; color:var(--text-dim); margin-top:2px;}
+  .finish-pr-title{font-size:12px; text-transform:uppercase; letter-spacing:.06em; color:var(--amber); margin-bottom:8px; font-weight:600;}
+  .finish-pr-item{font-size:13px; padding:6px 0; border-top:1px solid var(--border);}
+
   /* icons */
   .ex-icon-wrap{width:54px; height:54px; border-radius:10px; background:var(--surface-2); border:1px solid var(--border); flex-shrink:0; display:flex; align-items:center; justify-content:center;}
   .ex-icon-wrap svg{width:44px; height:44px;}
 
   /* Plan picker */
   .plan-grid{display:grid; grid-template-columns:repeat(2,1fr); gap:8px; margin-bottom:8px;}
+  .new-workout-form{display:none; gap:8px; margin-bottom:14px;}
+  .new-workout-form input{flex:1;}
+  .new-workout-form button{background:var(--moss); color:var(--bg); border:none; border-radius:8px; padding:0 16px; font-weight:600; font-size:13px; cursor:pointer; flex-shrink:0;}
   .plan-btn{background:var(--surface); border:1px solid var(--border); color:var(--text); border-radius:10px; padding:12px 10px; font-family:'Oswald',sans-serif; font-size:13px; font-weight:600; letter-spacing:.02em; text-transform:uppercase; text-align:left; cursor:pointer;}
   .plan-btn.full-width{grid-column:1 / -1;}
   .plan-btn.active{background:rgba(138,154,91,0.16); border-color:var(--moss); color:var(--moss);}
@@ -95,13 +118,15 @@
   .plan-group-title{font-family:'Oswald',sans-serif; font-size:15px; font-weight:600; text-transform:uppercase; letter-spacing:.02em;}
   .plan-group-focus{font-size:12px; color:var(--text-dim); margin-top:2px;}
   .group-edit-btn{background:none; border:none; color:var(--text-dim); font-size:12px; text-decoration:underline; cursor:pointer; padding:2px 0; flex-shrink:0;}
+  .group-edit-btn-delete{color:var(--rust); font-weight:600;}
 
   /* Template editor */
   .template-editor{background:var(--surface); border:1px solid var(--border); border-radius:12px; padding:12px; margin-bottom:10px;}
-  .template-row{display:flex; gap:6px; margin-bottom:8px;}
+  .template-row{display:flex; gap:6px; margin-bottom:8px; flex-wrap:wrap;}
   .template-row input{background:var(--surface-2); border:1px solid var(--border); color:var(--text); border-radius:8px; padding:9px; font-size:13px; width:100%;}
-  .template-row .t-name{flex:1.3;}
-  .template-row .t-target{flex:1;}
+  .template-row .t-name{flex:1.6; min-width:110px;}
+  .template-row .t-target{flex:1.1; min-width:80px;}
+  .template-row .t-weight{flex:0.7; min-width:56px;}
   .template-row .t-remove{background:none; border:none; color:var(--rust); font-size:16px; cursor:pointer; padding:0 6px; flex-shrink:0;}
   .template-add-row{border-top:1px dashed var(--border); padding-top:10px; margin-top:2px;}
   .template-add-row .t-add{background:var(--moss); color:var(--bg); border:none; border-radius:8px; padding:0 14px; font-weight:600; font-size:13px; cursor:pointer; flex-shrink:0;}
@@ -140,6 +165,10 @@
   .tally svg{display:block;}
   .tally-count{font-family:'JetBrains Mono',monospace; color:var(--text-dim); font-size:12px;}
   .exercise-meta{text-align:right; font-family:'JetBrains Mono',monospace; color:var(--text-dim); font-size:12px; flex-shrink:0;}
+  .exercise-side{display:flex; flex-direction:column; align-items:flex-end; gap:6px; flex-shrink:0;}
+  .exercise-complete-btn{background:none; border:1px solid var(--moss); color:var(--moss); font-size:11px; font-weight:600; padding:4px 9px; border-radius:6px; cursor:pointer; white-space:nowrap;}
+  .exercise-complete-btn.done{background:var(--moss); color:var(--bg); border-color:var(--moss);}
+  .exercise-card.completed{opacity:0.55;}
 
   .quick-add{display:none; margin-top:12px; padding-top:12px; border-top:1px solid var(--border);}
   .quick-add.open{display:block;}
@@ -158,7 +187,7 @@
   .exercise-prev b{color:var(--amber); font-weight:600;}
 
   /* Rest timer */
-  .rest-bar{position:fixed; left:16px; right:16px; bottom:158px; background:var(--moss); color:var(--bg); border-radius:12px; padding:12px 16px; display:flex; align-items:center; justify-content:space-between; box-shadow:0 6px 18px rgba(0,0,0,0.35); transform:translateY(20px); opacity:0; pointer-events:none; transition:transform .2s ease, opacity .2s ease; z-index:40;}
+  .rest-bar{position:fixed; left:16px; right:16px; bottom:20px; background:var(--moss); color:var(--bg); border-radius:12px; padding:12px 16px; display:flex; align-items:center; justify-content:space-between; box-shadow:0 6px 18px rgba(0,0,0,0.35); transform:translateY(20px); opacity:0; pointer-events:none; transition:transform .2s ease, opacity .2s ease; z-index:40;}
   .rest-bar.show{transform:translateY(0); opacity:1; pointer-events:auto;}
   .rest-info{display:flex; flex-direction:column;}
   .rest-info .rest-label-text{font-size:11px; text-transform:uppercase; letter-spacing:.06em; font-weight:600;}
@@ -177,14 +206,9 @@
   .history-sub{font-size:12px; color:var(--text-dim); margin-top:2px;}
   .history-vol{font-family:'JetBrains Mono',monospace; color:var(--amber); font-size:14px;}
 
-  .dock{position:fixed; bottom:0; left:0; right:0; background:var(--surface); border-top:1px solid var(--border); padding:14px 16px calc(14px + env(safe-area-inset-bottom)); display:grid; grid-template-columns:1fr; gap:8px;}
-  .dock-label{font-size:10px; letter-spacing:.08em; text-transform:uppercase; color:var(--text-dim); margin-bottom:-2px;}
-  .dock-row{display:flex; gap:8px;}
   input, .exercise-input{background:var(--surface-2); border:1px solid var(--border); color:var(--text); border-radius:8px; padding:12px; font-family:'Inter',sans-serif; font-size:15px; width:100%;}
   input:focus{outline:2px solid var(--moss); outline-offset:-1px;}
   input[type=number]{font-family:'JetBrains Mono',monospace;}
-  .col-2{flex:2;}
-  .col-1{flex:1;}
   button.primary{background:var(--moss); color:var(--bg); border:none; border-radius:8px; padding:14px; font-family:'Oswald',sans-serif; font-weight:600; font-size:15px; letter-spacing:.04em; text-transform:uppercase; cursor:pointer; width:100%;}
   button.primary:active{background:var(--moss-dim);}
 
@@ -214,6 +238,15 @@
   <button class="rest-skip" id="restSkip">Skip</button>
 </div>
 
+<div class="finish-modal" id="finishModal">
+  <div class="finish-modal-content">
+    <button class="photo-modal-close" id="finishModalClose">✕</button>
+    <div class="finish-title">Workout complete 💪</div>
+    <div id="finishModalBody"></div>
+    <button class="primary" id="finishSaveBtn" style="margin-top:14px;">Save workout</button>
+  </div>
+</div>
+
 <header>
   <div class="eyebrow" id="todayLabel">—</div>
   <h1>REP <span>LOG</span></h1>
@@ -222,37 +255,70 @@
     <div class="stat"><div class="num" id="statVolume">0</div><div class="lbl">Volume (kg)</div></div>
     <div class="stat"><div class="num" id="statStreak">0</div><div class="lbl">Day streak</div></div>
   </div>
+  <div class="workout-bar" id="workoutBar">
+    <span class="workout-timer-text">⏱ <span id="workoutTimerText">0:00</span></span>
+    <button class="finish-workout-btn" id="finishWorkoutBtn">Finish Workout</button>
+  </div>
 </header>
 
 <main>
   <div class="section-title">Progression</div>
   <div id="progCard" class="prog-card"></div>
 
-  <div class="section-title">Today's workout</div>
+  <div class="section-title">Workouts</div>
+  <button class="repeat-btn" id="repeatWorkoutBtn" style="display:none;">↻ Repeat previous workout</button>
   <div class="plan-grid" id="planGrid"></div>
+  <div class="new-workout-form" id="newWorkoutForm">
+    <input type="text" id="newWorkoutName" placeholder="Workout name (e.g. Push Day)" autocomplete="off">
+    <button id="newWorkoutCreateBtn">Create</button>
+  </div>
 
   <div id="planSection"></div>
 
-  <div class="section-title" id="extrasTitle" style="margin-top:22px;">Today</div>
+  <div class="section-title" id="extrasTitle" style="margin-top:22px; display:none;">Today</div>
   <div id="todayList"></div>
 
   <div class="section-title" style="margin-top:28px;">History</div>
   <div id="historyList"><div class="empty">Past sessions will show up here.</div></div>
 </main>
 
-<div class="dock">
-  <div class="dock-label">Log any exercise</div>
-  <input class="exercise-input" id="exerciseInput" list="exerciseOptions" placeholder="Exercise name" autocomplete="off">
-  <datalist id="exerciseOptions"></datalist>
-  <div class="dock-row">
-    <input class="col-1" id="weightInput" type="number" inputmode="decimal" placeholder="Weight kg" min="0" step="0.5">
-    <input class="col-1" id="repsInput" type="number" inputmode="numeric" placeholder="Reps" min="1" step="1">
-    <button class="primary" id="logBtn" style="flex:1.4;">Log set</button>
-  </div>
-</div>
+<datalist id="exerciseOptions"></datalist>
 
 <script>
 const $ = (id) => document.getElementById(id);
+/* ---------- Local Storage Compatibility Layer ---------- */
+
+window.storage = {
+  async get(key) {
+    const value = localStorage.getItem(key);
+    if (value === null) return null;
+    return { value };
+  },
+
+  async set(key, value) {
+    localStorage.setItem(key, value);
+    return true;
+  },
+
+  async remove(key) {
+    localStorage.removeItem(key);
+    return true;
+  },
+
+  async list(prefix = "") {
+    const keys = [];
+
+    for (let i = 0; i < localStorage.length; i++) {
+      const key = localStorage.key(i);
+      if (!prefix || key.startsWith(prefix)) {
+        keys.push(key);
+      }
+    }
+
+    return { keys };
+  }
+};
+
 let todayKey = "";
 let exerciseNames = new Set();
 let currentCheckinWeek = null;
@@ -338,11 +404,68 @@ const WORKOUTS = {
       {name:'Glute bridges', target:'3 × 15'},
       {name:'Mountain climbers', target:'3 × 20'},
       {name:'Plank', target:'3 × 45 sec'}
-    ]},
-  custom: { key:'custom', label:'Custom / other', type:'freeform' }
+    ]}
 };
 const PLAN_ORDER = ['warmup','lower','upper','full'];
 const editingGroups = new Set();
+
+async function getCustomWorkouts(){
+  try{
+    const res = await window.storage.get('custom-workouts');
+    return res && res.value ? JSON.parse(res.value) : [];
+  }catch(e){ return []; }
+}
+async function saveCustomWorkouts(list){
+  try{ await window.storage.set('custom-workouts', JSON.stringify(list)); }
+  catch(e){ console.error("Could not save custom workouts list", e); showToast("Couldn't save"); }
+}
+async function addCustomWorkout(label){
+  const list = await getCustomWorkouts();
+  const key = `custom-${Date.now()}`;
+  list.push({ key, label });
+  await saveCustomWorkouts(list);
+  return key;
+}
+async function getHiddenWorkouts(){
+  try{
+    const res = await window.storage.get('hidden-workouts');
+    return res && res.value ? JSON.parse(res.value) : [];
+  }catch(e){ return []; }
+}
+async function saveHiddenWorkouts(list){
+  try{ await window.storage.set('hidden-workouts', JSON.stringify(list)); }
+  catch(e){ console.error("Could not save hidden workouts list", e); showToast("Couldn't save"); }
+}
+async function getPlanDef(key){
+  if(WORKOUTS[key]) return WORKOUTS[key];
+  const list = await getCustomWorkouts();
+  const found = list.find(w=>w.key === key);
+  return found ? { key, label: found.label, type:'strength', focus:'Custom workout' } : null;
+}
+async function getAllPlanDefs(){
+  const hidden = await getHiddenWorkouts();
+  const fixed = PLAN_ORDER.filter(k=>!hidden.includes(k)).map(k=>WORKOUTS[k]);
+  const customList = await getCustomWorkouts();
+  const custom = customList.map(c=>({ key:c.key, label:c.label, type:'strength', focus:'Custom workout' }));
+  return [...fixed, ...custom];
+}
+async function deleteWorkout(key){
+  if(WORKOUTS[key]){
+    const hidden = await getHiddenWorkouts();
+    if(!hidden.includes(key)){
+      hidden.push(key);
+      await saveHiddenWorkouts(hidden);
+    }
+  } else {
+    const list = await getCustomWorkouts();
+    await saveCustomWorkouts(list.filter(w=>w.key !== key));
+    try{ await window.storage.delete(`workout-template:${key}`); }catch(e){ /* nothing to delete, fine */ }
+  }
+  editingGroups.delete(key);
+  await updateSession(todayKey, (s)=>{ s.plan = s.plan.filter(p=>p !== key); });
+  showToast("Workout deleted");
+  await renderAll();
+}
 
 async function getWorkoutTemplate(key){
   try{
@@ -352,7 +475,7 @@ async function getWorkoutTemplate(key){
       if(Array.isArray(parsed) && parsed.length) return parsed;
     }
   }catch(e){ /* fall through to default */ }
-  return WORKOUTS[key].exercises.map(e=>({...e}));
+  return (WORKOUTS[key] && WORKOUTS[key].exercises) ? WORKOUTS[key].exercises.map(e=>({...e})) : [];
 }
 async function saveWorkoutTemplate(key, exercises){
   try{
@@ -424,14 +547,14 @@ async function saveExerciseName(name){
   await loadExerciseNames();
 }
 
-function defaultSession(){ return { plan: [], checklist: [], sets: [] }; }
+function defaultSession(){ return { plan: [], checklist: [], sets: [], startedAt: null, finishedAt: null, newPRs: [], completed: [] }; }
 async function getSession(key){
   try{
     const res = await window.storage.get(`session:${key}`);
     if(!res || !res.value) return defaultSession();
     const parsed = JSON.parse(res.value);
-    if(Array.isArray(parsed)) return { plan: [], checklist: [], sets: parsed };
-    return { plan: parsed.plan || [], checklist: parsed.checklist || [], sets: parsed.sets || [] };
+    if(Array.isArray(parsed)) return { ...defaultSession(), sets: parsed }; // migrate old format
+    return { ...defaultSession(), ...parsed };
   }catch(e){ return defaultSession(); }
 }
 async function saveSession(key, sessionObj){
@@ -475,6 +598,49 @@ async function saveWeekData(week, data){
 }
 
 /* ---------- helpers ---------- */
+function formatDuration(ms){
+  const totalSec = Math.max(0, Math.floor(ms/1000));
+  const h = Math.floor(totalSec/3600), m = Math.floor((totalSec%3600)/60), s = totalSec%60;
+  return h > 0 ? `${h}:${String(m).padStart(2,'0')}:${String(s).padStart(2,'0')}` : `${m}:${String(s).padStart(2,'0')}`;
+}
+
+function prKey(exercise){
+  const safe = String(exercise).trim().toLowerCase().replace(/\s+/g,'-').replace(/['"/\\]/g,'');
+  return `pr:${safe}`;
+}
+async function getPRRecord(exercise){
+  try{
+    const res = await window.storage.get(prKey(exercise));
+    if(res && res.value) return JSON.parse(res.value);
+  }catch(e){ /* fall through */ }
+  return { maxWeight:0, maxWeightReps:0, best1RM:0, best1RMWeight:0, best1RMReps:0, repsAtWeight:{} };
+}
+async function checkAndUpdatePR(exercise, weight, reps){
+  const record = await getPRRecord(exercise);
+  const events = [];
+  if(weight > record.maxWeight){
+    record.maxWeight = weight; record.maxWeightReps = reps;
+    events.push({ type:'weight', detail:`Heaviest weight — ${weight}kg × ${reps}` });
+  }
+  const wKey = String(weight);
+  if(reps > (record.repsAtWeight[wKey] || 0)){
+    record.repsAtWeight[wKey] = reps;
+    events.push({ type:'reps', detail:`Most reps at ${weight}kg — ${reps} reps` });
+  }
+  if(weight > 0){
+    const est1RM = weight * (1 + reps/30);
+    if(est1RM > record.best1RM){
+      record.best1RM = est1RM; record.best1RMWeight = weight; record.best1RMReps = reps;
+      events.push({ type:'1rm', detail:`Estimated 1-rep max — ~${Math.round(est1RM)}kg` });
+    }
+  }
+  if(events.length){
+    try{ await window.storage.set(prKey(exercise), JSON.stringify(record)); }
+    catch(e){ console.error("Could not save PR", e); }
+  }
+  return events;
+}
+
 function groupByExercise(sets){
   const map = new Map();
   sets.forEach(s=>{ if(!map.has(s.exercise)) map.set(s.exercise, []); map.get(s.exercise).push(s); });
@@ -779,8 +945,6 @@ async function renderProgression(){
 /* ---------- plan picker ---------- */
 async function togglePlan(planKey){
   await updateSession(todayKey, (s)=>{
-    if(planKey === 'custom'){ s.plan = s.plan.includes('custom') ? [] : ['custom']; return; }
-    s.plan = s.plan.filter(p=>p !== 'custom');
     if(s.plan.includes(planKey)) s.plan = s.plan.filter(p=>p!==planKey);
     else s.plan.push(planKey);
   });
@@ -790,21 +954,41 @@ async function renderPlanGrid(){
   const session = await getSession(todayKey);
   const grid = $("planGrid");
   grid.innerHTML = "";
-  Object.values(WORKOUTS).forEach(w=>{
+  const defs = await getAllPlanDefs();
+  defs.forEach(w=>{
     const btn = document.createElement("button");
     const active = session.plan.includes(w.key);
-    btn.className = `plan-btn ${active?'active':''} ${w.key==='custom' ? 'full-width':''}`;
+    btn.className = `plan-btn ${active?'active':''}`;
     btn.textContent = w.label;
     btn.addEventListener('click', ()=>togglePlan(w.key));
     grid.appendChild(btn);
   });
+  const addBtn = document.createElement("button");
+  addBtn.className = 'plan-btn full-width';
+  addBtn.textContent = '+ Create a new workout';
+  addBtn.addEventListener('click', ()=>{
+    $("newWorkoutForm").style.display = 'flex';
+    $("newWorkoutName").focus();
+  });
+  grid.appendChild(addBtn);
+}
+
+async function createNewWorkout(){
+  const name = $("newWorkoutName").value.trim();
+  if(!name){ showToast("Give it a name first"); return; }
+  const key = await addCustomWorkout(name);
+  await updateSession(todayKey, (s)=>{ if(!s.plan.includes(key)) s.plan.push(key); });
+  $("newWorkoutName").value = "";
+  $("newWorkoutForm").style.display = 'none';
+  showToast(`"${name}" created`);
+  await renderAll();
 }
 
 /* ---------- plan section ---------- */
 async function planExerciseNameSet(planKeys){
   const names = new Set();
   for(const k of planKeys){
-    const w = WORKOUTS[k];
+    const w = await getPlanDef(k);
     if(w && w.type === 'strength'){
       const exercises = await getWorkoutTemplate(k);
       exercises.forEach(e=>names.add(e.name));
@@ -815,10 +999,25 @@ async function planExerciseNameSet(planKeys){
 async function quickLog(exercise, weightVal, repsVal, targetSets){
   const reps = Number(repsVal);
   if(!reps){ showToast("Add a rep count"); return; }
-  const newSet = { id:`${Date.now()}-${Math.random().toString(36).slice(2,7)}`, exercise, weight: weightVal ? Number(weightVal) : 0, reps, ts: Date.now() };
-  const updated = await updateSession(todayKey, (s)=> s.sets.push(newSet));
+  const weight = weightVal ? Number(weightVal) : 0;
+  const newSet = { id:`${Date.now()}-${Math.random().toString(36).slice(2,7)}`, exercise, weight, reps, ts: Date.now() };
+  const updated = await updateSession(todayKey, (s)=>{
+    if(!s.startedAt) s.startedAt = Date.now();
+    s.finishedAt = null;
+    s.sets.push(newSet);
+  });
   await saveExerciseName(exercise);
-  showToast("Set logged");
+
+  const prEvents = await checkAndUpdatePR(exercise, weight, reps);
+  if(prEvents.length){
+    await updateSession(todayKey, (s)=>{
+      s.newPRs = s.newPRs || [];
+      prEvents.forEach(ev => s.newPRs.push({ exercise, ...ev, ts: Date.now() }));
+    });
+    showToast(`🏆 New PR — ${exercise}`);
+  } else {
+    showToast("Set logged");
+  }
   await renderAll();
 
   const countForExercise = updated.sets.filter(s=>s.exercise === exercise).length;
@@ -885,9 +1084,9 @@ async function toggleChecklistItem(name){
   await renderAll();
 }
 
-async function buildExerciseCard(ex, loggedSets){
+async function buildExerciseCard(ex, loggedSets, isCompleted){
   const card = document.createElement("div");
-  card.className = "exercise-card";
+  card.className = `exercise-card${isCompleted ? ' completed' : ''}`;
   card.dataset.exercise = ex.name;
   const iconSvg = getIcon(ex.name) || GENERIC_ICON;
   const prev = await getPreviousPerformance(ex.name);
@@ -895,12 +1094,14 @@ async function buildExerciseCard(ex, loggedSets){
   const targetSetsNum = extractLeadingSets(ex.target);
   const repGoal = parseRepGoal(ex.target);
   const setNumber = targetSetsNum ? Math.min(loggedSets.length + 1, targetSetsNum) : loggedSets.length + 1;
+  const lastLogged = loggedSets.length ? loggedSets[loggedSets.length - 1] : null;
+  const weightDefault = lastLogged ? lastLogged.weight : (ex.weight != null ? ex.weight : (prev ? prev.weight : ''));
 
   const bodyHTML = repGoal
     ? `
       <div class="rep-tap-panel">
         <div class="rep-tap-setlabel">Set ${setNumber}${targetSetsNum ? ` of ${targetSetsNum}` : ''} · ${repGoal} reps</div>
-        <input type="number" inputmode="decimal" placeholder="Weight kg" class="qa-weight" min="0" step="0.5" value="${prev ? prev.weight : ''}">
+        <input type="number" inputmode="decimal" placeholder="Weight kg" class="qa-weight" min="0" step="0.5" value="${weightDefault}">
         <button type="button" class="rep-tap-btn">
           <span class="rep-tap-count">Tap to log set</span>
           <div class="rep-tap-hint">${repGoal} reps at this weight</div>
@@ -910,7 +1111,7 @@ async function buildExerciseCard(ex, loggedSets){
     `
     : `
       <div class="quick-add-row">
-        <input type="number" inputmode="decimal" placeholder="Weight kg" class="qa-weight" min="0" step="0.5">
+        <input type="number" inputmode="decimal" placeholder="Weight kg" class="qa-weight" min="0" step="0.5" value="${weightDefault}">
         <input type="number" inputmode="numeric" placeholder="Reps" class="qa-reps" min="1" step="1">
         <button class="qa-log">Log</button>
       </div>
@@ -922,16 +1123,23 @@ async function buildExerciseCard(ex, loggedSets){
       <div class="ex-icon-wrap">${iconSvg}</div>
       <div class="exercise-info">
         <div class="exercise-name">${escapeHTML(ex.name)}</div>
-        <div class="exercise-target">${escapeHTML(ex.target)}</div>
+        <div class="exercise-target">${escapeHTML(ex.target)}${ex.weight != null ? ` · ${ex.weight}kg` : ''}</div>
         ${ex.note ? `<div class="exercise-note">${escapeHTML(ex.note)}</div>` : ``}
         ${prev ? `<div class="exercise-prev">Previous (${escapeHTML(prevLabel)}): <b>${prev.weight}kg × ${prev.reps}</b></div>` : ``}
         <div class="tally">${tallySVG(loggedSets.length)}<span class="tally-count">${loggedSets.length} logged</span></div>
       </div>
-      <div class="exercise-meta">${Math.round(volumeOf(loggedSets))} kg vol</div>
+      <div class="exercise-side">
+        <div class="exercise-meta">${Math.round(volumeOf(loggedSets))} kg vol</div>
+        <button type="button" class="exercise-complete-btn ${isCompleted ? 'done' : ''}" data-complete="${escapeHTML(ex.name)}">${isCompleted ? '✓ Done' : 'Complete'}</button>
+      </div>
     </div>
     <div class="quick-add">${bodyHTML}</div>
   `;
   card.querySelector('[data-toggle]').addEventListener('click', ()=>{ card.querySelector('.quick-add').classList.toggle('open'); });
+  card.querySelector('.exercise-complete-btn').addEventListener('click', (e)=>{
+    e.stopPropagation();
+    toggleExerciseComplete(ex.name);
+  });
 
   if(repGoal){
     const tapBtn = card.querySelector('.rep-tap-btn');
@@ -957,11 +1165,24 @@ async function buildExerciseCard(ex, loggedSets){
   return card;
 }
 
+async function toggleExerciseComplete(name){
+  const session = await getSession(todayKey);
+  const isDone = (session.completed || []).includes(name);
+  await updateSession(todayKey, (s)=>{
+    s.completed = s.completed || [];
+    s.completed = isDone ? s.completed.filter(n=>n!==name) : [...s.completed, name];
+  });
+  await renderAll();
+  if(!isDone) advanceToNextExercise(name);
+}
+
 async function renderPlanSection(){
   const session = await getSession(todayKey);
   const container = $("planSection");
   const grouped = groupByExercise(session.sets);
-  const activePlans = PLAN_ORDER.filter(k=>session.plan.includes(k));
+  const customList = await getCustomWorkouts();
+  const orderedKeys = [...PLAN_ORDER, ...customList.map(c=>c.key)];
+  const activePlans = orderedKeys.filter(k=>session.plan.includes(k));
 
   if(activePlans.length === 0){
     container.innerHTML = "";
@@ -972,12 +1193,31 @@ async function renderPlanSection(){
   container.innerHTML = "";
 
   for(const key of activePlans){
-    const w = WORKOUTS[key];
+    const w = await getPlanDef(key);
+    if(!w) continue;
     const group = document.createElement("div");
     group.className = "plan-group";
 
     if(w.type === 'checklist'){
-      group.innerHTML = `<div class="plan-group-header"><div class="plan-group-title">${escapeHTML(w.label)}</div></div>`;
+      group.innerHTML = `
+        <div class="plan-group-header">
+          <div class="plan-group-header-top">
+            <div class="plan-group-title">${escapeHTML(w.label)}</div>
+            <button class="group-edit-btn" data-group-edit="${key}">Delete</button>
+          </div>
+        </div>
+      `;
+      const delBtn = group.querySelector('.group-edit-btn');
+      delBtn.addEventListener('click', async ()=>{
+        if(delBtn.dataset.armed !== '1'){
+          delBtn.dataset.armed = '1';
+          delBtn.classList.add('group-edit-btn-delete');
+          delBtn.textContent = 'Tap again to delete';
+          setTimeout(()=>{ if(delBtn.dataset.armed === '1'){ delBtn.dataset.armed = '0'; delBtn.classList.remove('group-edit-btn-delete'); delBtn.textContent = 'Delete'; } }, 3000);
+          return;
+        }
+        await deleteWorkout(key);
+      });
       w.exercises.forEach(name=>{
         const done = session.checklist.includes(name);
         const item = document.createElement("div");
@@ -993,6 +1233,9 @@ async function renderPlanSection(){
       });
     } else if(w.type === 'strength'){
       const exercises = await getWorkoutTemplate(key);
+      if(exercises.length === 0) editingGroups.add(key);
+      const isEditing = editingGroups.has(key);
+      const toggleLabel = isEditing ? 'Delete' : 'Edit';
       group.innerHTML = `
         <div class="plan-group-header">
           <div class="plan-group-header-top">
@@ -1000,21 +1243,33 @@ async function renderPlanSection(){
               <div class="plan-group-title">${escapeHTML(w.label)}</div>
               <div class="plan-group-focus">${escapeHTML(w.focus)}</div>
             </div>
-            <button class="group-edit-btn" data-group-edit="${key}">${editingGroups.has(key) ? 'Close' : 'Edit'}</button>
+            <button class="group-edit-btn ${isEditing ? 'group-edit-btn-delete' : ''}" data-group-edit="${key}">${toggleLabel}</button>
           </div>
         </div>
       `;
-      group.querySelector('.group-edit-btn').addEventListener('click', async ()=>{
+      const editBtn = group.querySelector('.group-edit-btn');
+      if(editBtn) editBtn.addEventListener('click', async ()=>{
+        if(isEditing){
+          if(editBtn.dataset.armed !== '1'){
+            editBtn.dataset.armed = '1';
+            editBtn.textContent = 'Tap again to delete';
+            setTimeout(()=>{ if(editBtn.dataset.armed === '1'){ editBtn.dataset.armed = '0'; editBtn.textContent = 'Delete'; } }, 3000);
+            return;
+          }
+          await deleteWorkout(key);
+          return;
+        }
         if(editingGroups.has(key)) editingGroups.delete(key); else editingGroups.add(key);
         await renderPlanSection();
       });
 
-      if(editingGroups.has(key)){
+      if(isEditing){
         group.appendChild(buildTemplateEditor(key, exercises));
       } else {
         for(const ex of exercises){
           const logged = grouped.get(ex.name) || [];
-          const card = await buildExerciseCard(ex, logged);
+          const isCompleted = (session.completed || []).includes(ex.name);
+          const card = await buildExerciseCard(ex, logged, isCompleted);
           group.appendChild(card);
         }
       }
@@ -1027,46 +1282,57 @@ function buildTemplateEditor(key, exercises){
   const wrap = document.createElement('div');
   wrap.className = 'template-editor';
 
-  const makeRow = (name, target, note)=>{
+  const makeRow = (name, target, note, weight)=>{
     const row = document.createElement('div');
     row.className = 'template-row';
     row.innerHTML = `
       <input class="t-name" value="${escapeHTML(name)}" placeholder="Exercise name">
       <input class="t-target" value="${escapeHTML(target)}" placeholder="e.g. 3 × 12">
+      <input class="t-weight" type="number" inputmode="decimal" min="0" step="0.5" value="${weight != null ? weight : ''}" placeholder="kg">
       <button class="t-remove" type="button">✕</button>
     `;
     row.querySelector('.t-remove').addEventListener('click', ()=> row.remove());
     return row;
   };
 
-  exercises.forEach(ex=> wrap.appendChild(makeRow(ex.name, ex.target || '', ex.note || '')));
+  exercises.forEach(ex=> wrap.appendChild(makeRow(ex.name, ex.target || '', ex.note || '', ex.weight)));
 
   const addRow = document.createElement('div');
   addRow.className = 'template-row template-add-row';
   addRow.innerHTML = `
-    <input class="t-name" placeholder="New exercise name">
+    <input class="t-name" placeholder="New exercise name" list="exerciseOptions" autocomplete="off">
     <input class="t-target" placeholder="e.g. 3 × 12">
+    <input class="t-weight" type="number" inputmode="decimal" min="0" step="0.5" placeholder="kg">
     <button class="t-add" type="button">Add</button>
   `;
   addRow.querySelector('.t-add').addEventListener('click', ()=>{
     const name = addRow.querySelector('.t-name').value.trim();
     const target = addRow.querySelector('.t-target').value.trim();
+    const weight = addRow.querySelector('.t-weight').value;
     if(!name || !target){ showToast("Add a name and target"); return; }
-    wrap.insertBefore(makeRow(name, target, ''), addRow);
+    wrap.insertBefore(makeRow(name, target, '', weight ? Number(weight) : null), addRow);
     addRow.querySelector('.t-name').value = '';
     addRow.querySelector('.t-target').value = '';
+    addRow.querySelector('.t-weight').value = '';
   });
   wrap.appendChild(addRow);
 
   const actions = document.createElement('div');
   actions.className = 'template-actions';
-  actions.innerHTML = `<button class="template-save" type="button">Save changes</button><button class="template-cancel" type="button">Cancel</button>`;
+  actions.innerHTML = `
+    <button class="template-save" type="button">Save changes</button>
+    <button class="template-cancel" type="button">Cancel</button>
+  `;
   actions.querySelector('.template-save').addEventListener('click', async ()=>{
     const rows = [...wrap.querySelectorAll('.template-row:not(.template-add-row)')];
-    const newExercises = rows.map(r=>({
-      name: r.querySelector('.t-name').value.trim(),
-      target: r.querySelector('.t-target').value.trim()
-    })).filter(e=>e.name && e.target);
+    const newExercises = rows.map(r=>{
+      const w = r.querySelector('.t-weight').value;
+      return {
+        name: r.querySelector('.t-name').value.trim(),
+        target: r.querySelector('.t-target').value.trim(),
+        weight: w ? Number(w) : null
+      };
+    }).filter(e=>e.name && e.target);
     if(newExercises.length === 0){ showToast("Add at least one exercise"); return; }
     await saveWorkoutTemplate(key, newExercises);
     editingGroups.delete(key);
@@ -1087,13 +1353,14 @@ async function renderExtras(){
   const planNames = await planExerciseNameSet(session.plan);
   const extraSets = session.sets.filter(s=>!planNames.has(s.exercise));
   const container = $("todayList");
+  const title = $("extrasTitle");
 
   if(extraSets.length === 0){
-    container.innerHTML = session.plan.length
-      ? `<div class="empty">Anything you log below that isn't part of today's plan shows up here.</div>`
-      : `<div class="empty">No sets logged yet. Pick a workout above, or add one below.</div>`;
+    title.style.display = 'none';
+    container.innerHTML = "";
     return;
   }
+  title.style.display = 'flex';
 
   const grouped = groupByExercise(extraSets);
   container.innerHTML = "";
@@ -1171,15 +1438,82 @@ async function renderHistory(){
   $("statStreak").textContent = streak;
 }
 
-/* ---------- dock ---------- */
-async function logFromDock(){
-  const exercise = $("exerciseInput").value.trim();
-  const weight = $("weightInput").value;
-  const reps = $("repsInput").value;
-  if(!exercise){ showToast("Name the exercise first"); return; }
-  if(!reps){ showToast("Add a rep count"); return; }
-  await quickLog(exercise, weight, reps, null);
-  $("repsInput").value = "";
+/* ---------- workout timer ---------- */
+let workoutTimerInterval = null;
+let workoutTimerStartedAt = null;
+async function updateWorkoutBar(){
+  const session = await getSession(todayKey);
+  const bar = $("workoutBar");
+  if(session.startedAt && !session.finishedAt){
+    bar.style.display = 'flex';
+    if(workoutTimerStartedAt !== session.startedAt){
+      workoutTimerStartedAt = session.startedAt;
+      clearInterval(workoutTimerInterval);
+      const tick = ()=>{ $("workoutTimerText").textContent = formatDuration(Date.now() - session.startedAt); };
+      tick();
+      workoutTimerInterval = setInterval(tick, 1000);
+    }
+  } else {
+    bar.style.display = 'none';
+    clearInterval(workoutTimerInterval);
+    workoutTimerInterval = null;
+    workoutTimerStartedAt = null;
+  }
+}
+
+/* ---------- finish workout ---------- */
+async function handleFinishWorkout(){
+  const session = await getSession(todayKey);
+  if(!session.startedAt){ showToast("Log a set first"); return; }
+  const duration = Date.now() - session.startedAt;
+  const totalSets = session.sets.length;
+  const exerciseNames = new Set(session.sets.map(s=>s.exercise));
+  (session.completed || []).forEach(name=>exerciseNames.add(name));
+  const uniqueExercises = exerciseNames.size;
+  const totalVolume = volumeOf(session.sets);
+  const prs = session.newPRs || [];
+
+  $("finishModalBody").innerHTML = `
+    <div class="finish-stat-grid">
+      <div class="finish-stat"><div class="finish-stat-num">${formatDuration(duration)}</div><div class="finish-stat-lbl">Duration</div></div>
+      <div class="finish-stat"><div class="finish-stat-num">${totalSets}</div><div class="finish-stat-lbl">Total sets</div></div>
+      <div class="finish-stat"><div class="finish-stat-num">${uniqueExercises}</div><div class="finish-stat-lbl">Exercises</div></div>
+      <div class="finish-stat"><div class="finish-stat-num">${Math.round(totalVolume)}</div><div class="finish-stat-lbl">Volume (kg)</div></div>
+    </div>
+    ${prs.length
+      ? `<div class="finish-pr-title">🏆 New personal records</div>${prs.map(p=>`<div class="finish-pr-item">${escapeHTML(p.exercise)}<br>${escapeHTML(p.detail)}</div>`).join("")}`
+      : `<div class="finish-pr-title" style="color:var(--text-dim);">No new PRs this time — still solid work.</div>`}
+  `;
+  $("finishModal").classList.add('open');
+}
+async function saveFinishedWorkout(){
+  await updateSession(todayKey, (s)=>{ s.finishedAt = Date.now(); });
+  $("finishModal").classList.remove('open');
+  await renderAll();
+  showToast("Workout saved 💪");
+}
+
+/* ---------- copy previous workout ---------- */
+async function findPreviousPlanDay(){
+  const keys = await getAllSessionKeys();
+  const dateKeys = keys.map(k=>k.replace('session:','')).filter(k=>k !== todayKey).sort((a,b)=> b.localeCompare(a));
+  for(const key of dateKeys){
+    const s = await getSession(key);
+    if(s.plan && s.plan.length) return s.plan;
+  }
+  return null;
+}
+async function renderRepeatButton(){
+  const session = await getSession(todayKey);
+  const btn = $("repeatWorkoutBtn");
+  if(session.plan.length){ btn.style.display = 'none'; return; }
+  const prevPlan = await findPreviousPlanDay();
+  btn.style.display = prevPlan ? 'block' : 'none';
+  btn.onclick = async ()=>{
+    await updateSession(todayKey, (s)=>{ s.plan = prevPlan; });
+    showToast("Loaded previous workout");
+    await renderAll();
+  };
 }
 
 /* ---------- render all ---------- */
@@ -1189,6 +1523,8 @@ async function renderAll(){
   await renderExtras();
   await renderStats();
   await renderHistory();
+  await renderRepeatButton();
+  await updateWorkoutBar();
 }
 
 async function init(){
@@ -1200,12 +1536,17 @@ async function init(){
   await renderProgression();
   await renderAll();
 
-  $("logBtn").addEventListener('click', logFromDock);
-  $("repsInput").addEventListener('keydown', (e)=>{ if(e.key === 'Enter') logFromDock(); });
-
   $("photoModalClose").addEventListener('click', closePhotoModal);
   $("photoModal").addEventListener('click', (e)=>{ if(e.target.id === 'photoModal') closePhotoModal(); });
   $("restSkip").addEventListener('click', skipRest);
+
+  $("finishWorkoutBtn").addEventListener('click', handleFinishWorkout);
+  $("finishModalClose").addEventListener('click', ()=> $("finishModal").classList.remove('open'));
+  $("finishModal").addEventListener('click', (e)=>{ if(e.target.id === 'finishModal') $("finishModal").classList.remove('open'); });
+  $("finishSaveBtn").addEventListener('click', saveFinishedWorkout);
+
+  $("newWorkoutCreateBtn").addEventListener('click', createNewWorkout);
+  $("newWorkoutName").addEventListener('keydown', (e)=>{ if(e.key === 'Enter') createNewWorkout(); });
 
   $("checkinFileInput").addEventListener('change', async (e)=>{
     const file = e.target.files[0];
