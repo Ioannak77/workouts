@@ -30,6 +30,9 @@
   ::selection{background:var(--moss); color:var(--bg);}
 
   header{padding:28px 20px 16px; border-bottom:1px solid var(--border);}
+  .header-top{display:flex; align-items:center; gap:10px;}
+  .profile-btn{width:34px; height:34px; border-radius:50%; background:var(--surface); border:1px solid var(--border); display:flex; align-items:center; justify-content:center; cursor:pointer; flex-shrink:0; padding:0;}
+  .profile-btn svg{width:18px; height:18px; display:block;}
   .eyebrow{font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:var(--text-dim);}
   h1{font-family:'Oswald',sans-serif; font-weight:700; font-size:34px; letter-spacing:.02em; text-transform:uppercase; margin:4px 0 0; color:var(--text);}
   h1 span{color:var(--moss);}
@@ -62,6 +65,25 @@
   .finish-stat-lbl{font-size:10px; text-transform:uppercase; letter-spacing:.06em; color:var(--text-dim); margin-top:2px;}
   .finish-pr-title{font-size:12px; text-transform:uppercase; letter-spacing:.06em; color:var(--amber); margin-bottom:8px; font-weight:600;}
   .finish-pr-item{font-size:13px; padding:6px 0; border-top:1px solid var(--border);}
+
+  /* Profile modal */
+  .profile-modal-content{max-height:85vh; overflow-y:auto;}
+  .profile-section-title{font-size:12px; letter-spacing:.08em; text-transform:uppercase; color:var(--text-dim); margin:18px 0 8px;}
+  .profile-section-title:first-of-type{margin-top:0;}
+  .profile-hint{font-size:12px; color:var(--text-dim); line-height:1.5; margin-top:-2px; margin-bottom:10px;}
+  #equipmentList .checklist-item, #goalsList .checklist-item{margin-bottom:6px; padding:9px 12px;}
+  #equipmentList .checklist-label, #goalsList .checklist-label{font-size:13px;}
+  #equipmentList .checklist-item.done .checklist-label, #goalsList .checklist-item.done .checklist-label{text-decoration:none; color:var(--text);}
+
+  .profile-identity{display:flex; gap:8px; align-items:center; margin-bottom:18px;}
+  .profile-name-input{flex:1;}
+  .profile-gender-row{display:flex; gap:6px; flex-shrink:0;}
+  .profile-gender-btn{width:44px; text-align:center; padding:12px 0;}
+  .profile-menu{display:flex; flex-direction:column; gap:8px;}
+  .profile-menu-item{display:flex; align-items:center; justify-content:space-between; width:100%; background:var(--surface-2); border:1px solid var(--border); color:var(--text); border-radius:10px; padding:14px 16px; font-family:'Oswald',sans-serif; font-size:14px; font-weight:600; letter-spacing:.02em; text-transform:uppercase; cursor:pointer;}
+  .pmi-arrow{color:var(--text-dim); font-size:18px;}
+  .profile-subheader{display:flex; align-items:center; gap:12px; margin-bottom:16px;}
+  .profile-back-btn{background:none; border:none; color:var(--moss); font-size:13px; font-weight:600; cursor:pointer; padding:0; flex-shrink:0;}
 
   /* icons */
   .ex-icon-wrap{width:54px; height:54px; border-radius:10px; background:var(--surface-2); border:1px solid var(--border); flex-shrink:0; display:flex; align-items:center; justify-content:center;}
@@ -217,6 +239,11 @@
   .toast{position:fixed; top:16px; left:50%; transform:translateX(-50%) translateY(-60px); background:var(--moss); color:var(--bg); padding:10px 18px; border-radius:20px; font-size:13px; font-weight:600; transition:transform .25s ease; z-index:50;}
   .toast.show{transform:translateX(-50%) translateY(0);}
 
+  .exercise-picker{display:flex; gap:8px; overflow-x:auto; padding-bottom:8px; margin-bottom:10px; border-bottom:1px dashed var(--border);}
+  .exercise-picker-chip{flex-shrink:0; width:72px; text-align:center; cursor:pointer; background:none; border:none; padding:0;}
+  .exercise-picker-chip img{width:56px; height:56px; border-radius:10px; background:var(--surface-2); border:1px solid var(--border); object-fit:contain; padding:4px; display:block; margin:0 auto;}
+  .exercise-picker-chip .epc-label{display:block; font-size:10px; color:var(--text-dim); margin-top:4px; line-height:1.2;}
+
   @media (prefers-reduced-motion: reduce){ .quick-add, .toast{transition:none;} }
 </style>
 </head>
@@ -249,12 +276,24 @@
   </div>
 </div>
 
+<div class="finish-modal" id="profileModal">
+  <div class="finish-modal-content profile-modal-content">
+    <button class="photo-modal-close" id="profileModalClose">✕</button>
+    <div id="profileModalBody"></div>
+  </div>
+</div>
+
 <header>
-  <div class="eyebrow" id="todayLabel">—</div>
+  <div class="header-top">
+    <button class="profile-btn" id="profileBtn" aria-label="Profile">
+      <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="4" stroke="var(--moss)" stroke-width="2"/><path d="M4 20c0-4.4 3.6-7 8-7s8 2.6 8 7" stroke="var(--moss)" stroke-width="2" stroke-linecap="round"/></svg>
+    </button>
+    <div class="eyebrow" id="todayLabel">—</div>
+  </div>
   <h1>REP <span>LOG</span></h1>
   <div class="stats">
     <div class="stat"><div class="num" id="statSets">0</div><div class="lbl">Sets today</div></div>
-    <div class="stat"><div class="num" id="statVolume">0</div><div class="lbl">Volume (kg)</div></div>
+    <div class="stat"><div class="num" id="statVolume">0</div><div class="lbl" id="statVolumeLabel">Volume (kg)</div></div>
     <div class="stat"><div class="num" id="statStreak">0</div><div class="lbl">Day streak</div></div>
   </div>
   <div class="workout-bar" id="workoutBar">
@@ -324,89 +363,38 @@ window.storage = {
 let todayKey = "";
 let exerciseNames = new Set();
 let currentCheckinWeek = null;
+let profileView = 'hub';
+let userUnits = 'kg';
+let userRestSeconds = 30;
+let userTimerAlert = 'sound';
 
-/* ---------- exercise icon library (color-blocked female figure pictograms) ---------- */
-const ROLE_STYLE = {
-  t: { w:14, c:'var(--moss)' },       // torso / top
-  a: { w:9,  c:'var(--skin)' },       // arms
-  l: { w:12, c:'var(--leggings)' },   // legs
-  acc: { w:6, c:'var(--amber)' }      // held weight / accessory
-};
-function icon(parts, headPos){
-  const lines = parts.map(([x1,y1,x2,y2,role])=>{
-    const st = ROLE_STYLE[role] || ROLE_STYLE.a;
-    return `<line x1="${x1}" y1="${y1}" x2="${x2}" y2="${y2}" stroke="${st.c}" stroke-width="${st.w}" stroke-linecap="round"/>`;
-  }).join("");
-  const [hx,hy] = headPos;
-  const head = `<circle cx="${hx}" cy="${hy}" r="8" fill="var(--skin)"/>`;
-  const hair = `<path d="M ${hx-7} ${hy-5} q -2 -9 8 -9 q 9 0 8 8 q 1 4 -1 6 z" fill="var(--hair)"/><path d="M ${hx+6} ${hy-2} q 9 4 5 16" stroke="var(--hair)" stroke-width="4" fill="none" stroke-linecap="round"/>`;
-  return `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">${lines}${head}${hair}</svg>`;
+/* ---------- exercise icons ---------- */
+/* Simple fallback icon for any exercise that doesn't have a matching photo in EXERCISE_LIBRARY yet
+   (e.g. warm-up items, "Full Body" defaults, or names you type in manually). */
+const GENERIC_ICON = `<svg viewBox="0 0 24 24" fill="none"><rect x="1.5" y="9" width="3" height="6" rx="1" fill="var(--moss)"/><rect x="19.5" y="9" width="3" height="6" rx="1" fill="var(--moss)"/><rect x="4.5" y="10.5" width="3" height="3" fill="var(--moss)"/><rect x="16.5" y="10.5" width="3" height="3" fill="var(--moss)"/><rect x="7.5" y="11" width="9" height="2" fill="var(--moss)"/></svg>`;
+
+function findExerciseImage(name){
+  for(const key of Object.keys(EXERCISE_LIBRARY)){
+    const found = EXERCISE_LIBRARY[key].find(e=>e.name === name);
+    if(found) return found.img;
+  }
+  return null;
 }
-const GENERIC_ICON = icon([
-  [50,26,50,55,'t'],[50,30,30,45,'a'],[50,30,70,45,'a'],[50,55,38,88,'l'],[50,55,62,88,'l']
-], [50,17]);
-
-const EXERCISE_ICONS = {
-  'Arm circles': icon([[50,25,50,55,'t'],[50,28,16,22,'a'],[50,28,84,22,'a'],[50,55,38,88,'l'],[50,55,62,88,'l']], [50,17]),
-  'Marching in place': icon([[50,25,50,55,'t'],[50,30,32,42,'a'],[50,30,70,14,'a'],[50,55,60,72,'l'],[60,72,50,90,'l'],[50,55,35,90,'l']], [50,17]),
-  'Bodyweight squats': icon([[50,28,50,50,'t'],[50,32,26,36,'a'],[50,32,74,36,'a'],[50,50,34,72,'l'],[34,72,40,90,'l'],[50,50,66,72,'l'],[66,72,60,90,'l']], [50,20]),
-  'Hip circles': icon([[50,25,50,55,'t'],[50,30,30,44,'a'],[50,30,70,44,'a'],[50,55,40,90,'l'],[50,55,60,90,'l']], [50,17]),
-  'Light stretching': icon([[54,25,50,55,'t'],[54,28,82,10,'a'],[54,28,32,40,'a'],[50,55,42,90,'l'],[50,55,60,90,'l']], [58,17]),
-  'Squats': icon([[50,28,50,50,'t'],[50,32,40,42,'a'],[50,32,60,42,'a'],[50,50,34,72,'l'],[34,72,40,90,'l'],[50,50,66,72,'l'],[66,72,60,90,'l']], [50,20]),
-  'Goblet squats': icon([[50,28,50,50,'t'],[42,46,58,46,'acc'],[50,34,42,46,'a'],[50,34,58,46,'a'],[50,50,34,72,'l'],[34,72,40,90,'l'],[50,50,66,72,'l'],[66,72,60,90,'l']], [50,20]),
-  'Glute bridges': icon([[24,62,55,62,'t'],[55,62,55,84,'l'],[24,62,16,78,'l'],[16,78,10,90,'l'],[55,45,55,62,'a']], [16,62]),
-  'Romanian deadlifts': icon([[38,30,60,48,'t'],[60,48,60,70,'l'],[60,70,55,90,'l'],[60,70,68,90,'l'],[38,32,20,52,'a'],[38,32,48,56,'a']], [34,22]),
-  'Reverse lunges': icon([[50,22,50,48,'t'],[50,48,36,68,'l'],[36,68,26,88,'l'],[50,48,62,64,'l'],[62,64,70,50,'l'],[50,28,38,40,'a'],[50,28,62,40,'a']], [50,15]),
-  'Side leg raises': icon([[16,58,46,58,'t'],[46,58,62,50,'l'],[16,58,16,78,'l'],[16,78,12,92,'l'],[16,58,6,48,'a']], [16,50]),
-  'Plank': icon([[16,56,70,56,'t'],[70,56,86,60,'a'],[16,56,16,76,'l'],[16,76,8,86,'l']], [16,49]),
-  'Dead bugs': icon([[24,52,56,52,'t'],[56,52,78,32,'a'],[56,52,80,62,'l'],[24,52,14,32,'a'],[24,52,14,72,'l']], [20,45]),
-  'Shoulder press': icon([[50,28,50,55,'t'],[50,32,30,16,'a'],[50,32,70,16,'a'],[50,55,40,90,'l'],[50,55,60,90,'l']], [50,20]),
-  'Bent-over rows': icon([[66,35,42,46,'t'],[42,46,26,42,'a'],[42,46,48,66,'a'],[66,35,80,56,'l'],[80,56,74,90,'l'],[80,56,90,90,'l']], [70,26]),
-  'Rows': icon([[66,35,42,46,'t'],[42,46,26,42,'a'],[42,46,48,66,'a'],[66,35,80,56,'l'],[80,56,74,90,'l'],[80,56,90,90,'l']], [70,26]),
-  'Chest press or knee push-ups': icon([[24,52,66,52,'t'],[66,52,82,56,'a'],[42,46,42,56,'a'],[24,52,24,72,'l'],[24,72,34,82,'l']], [16,46]),
-  'Lateral raises': icon([[50,25,50,55,'t'],[50,28,18,28,'a'],[50,28,82,28,'a'],[50,55,40,90,'l'],[50,55,60,90,'l']], [50,17]),
-  'Bicep curls': icon([[50,25,50,55,'t'],[50,30,34,46,'a'],[34,46,30,26,'a'],[50,30,66,46,'a'],[66,46,70,26,'a'],[50,55,42,90,'l'],[50,55,58,90,'l']], [50,17]),
-  'Tricep extensions': icon([[50,25,50,55,'t'],[50,28,50,8,'a'],[50,8,66,24,'a'],[50,55,42,90,'l'],[50,55,58,90,'l']], [50,17]),
-  'Bird dogs': icon([[24,48,56,48,'t'],[56,48,68,42,'a'],[24,48,18,64,'l'],[18,64,12,78,'l'],[24,48,8,36,'a'],[56,48,82,30,'l']], [20,40]),
-  'Heel taps': icon([[16,52,46,58,'t'],[46,58,58,52,'l'],[46,58,58,72,'l'],[16,52,22,30,'a'],[22,30,38,24,'a']], [12,46]),
-  'Mountain climbers': icon([[16,56,70,56,'t'],[70,56,86,60,'a'],[16,56,16,76,'l'],[46,62,58,40,'l']], [16,49])
-};
-function getIcon(name){ return EXERCISE_ICONS[name] || null; }
+function getIcon(name){
+  const img = findExerciseImage(name);
+  if(img) return `<img src="${EXERCISE_IMAGE_PATH}${img}" alt="${escapeHTML(name)}" style="width:100%;height:100%;object-fit:contain;">`;
+  return null;
+}
 
 const WORKOUTS = {
   warmup: { key:'warmup', label:'Warm-up', type:'checklist',
     exercises:['Arm circles','Marching in place','Bodyweight squats','Hip circles','Light stretching'] },
-  lower: { key:'lower', label:'Lower Body + Core', type:'strength', focus:'Glutes, legs, waist tightening',
-    exercises:[
-      {name:'Squats', target:'3 × 12'},
-      {name:'Glute bridges', target:'3 × 15'},
-      {name:'Romanian deadlifts', target:'3 × 12', note:'Dumbbells or band'},
-      {name:'Reverse lunges', target:'3 × 10 each leg'},
-      {name:'Side leg raises', target:'3 × 15'},
-      {name:'Plank', target:'3 × 30–45 sec'},
-      {name:'Dead bugs', target:'3 × 10 each side'}
-    ]},
-  upper: { key:'upper', label:'Upper Body + Core', type:'strength', focus:'Posture, arms, shoulders, upper-body tone',
-    exercises:[
-      {name:'Shoulder press', target:'3 × 12'},
-      {name:'Bent-over rows', target:'3 × 12'},
-      {name:'Chest press or knee push-ups', target:'3 × 10'},
-      {name:'Lateral raises', target:'3 × 12'},
-      {name:'Bicep curls', target:'3 × 12'},
-      {name:'Tricep extensions', target:'3 × 12'},
-      {name:'Bird dogs', target:'3 × 10 each side'},
-      {name:'Heel taps', target:'3 × 20'}
-    ]},
+  lower: { key:'lower', label:'Lower Body', type:'strength', focus:'Glutes, legs, waist tightening',
+    exercises:[]},
+  upper: { key:'upper', label:'Upper Body', type:'strength', focus:'Posture, arms, shoulders, upper-body tone',
+    exercises:[]},
   full: { key:'full', label:'Full Body', type:'strength', focus:'Overall tone + calorie burn',
-    exercises:[
-      {name:'Goblet squats', target:'3 × 12'},
-      {name:'Romanian deadlifts', target:'3 × 12'},
-      {name:'Shoulder press', target:'3 × 12'},
-      {name:'Rows', target:'3 × 12'},
-      {name:'Glute bridges', target:'3 × 15'},
-      {name:'Mountain climbers', target:'3 × 20'},
-      {name:'Plank', target:'3 × 45 sec'}
-    ]}
+    exercises:[]}
 };
 const PLAN_ORDER = ['warmup','lower','upper','full'];
 const editingGroups = new Set();
@@ -505,6 +493,53 @@ function escapeHTML(str){
   return div.innerHTML;
 }
 
+/* ---------- fuzzy matching for exercise search ---------- */
+function levenshtein(a, b){
+  const m = a.length, n = b.length;
+  const dp = Array.from({length:m+1}, ()=> new Array(n+1).fill(0));
+  for(let i=0;i<=m;i++) dp[i][0] = i;
+  for(let j=0;j<=n;j++) dp[0][j] = j;
+  for(let i=1;i<=m;i++){
+    for(let j=1;j<=n;j++){
+      dp[i][j] = a[i-1] === b[j-1]
+        ? dp[i-1][j-1]
+        : 1 + Math.min(dp[i-1][j], dp[i][j-1], dp[i-1][j-1]);
+    }
+  }
+  return dp[m][n];
+}
+function fuzzyScore(query, target){
+  query = String(query).trim().toLowerCase();
+  const t = String(target).toLowerCase();
+  if(!query) return 0;
+  if(t === query) return 100;
+  if(t.startsWith(query)) return 90;
+  if(t.includes(query)) return 75;
+
+  const words = t.split(/\s+/);
+  let best = 0;
+  words.forEach(w=>{
+    if(w.startsWith(query)) best = Math.max(best, 65);
+    else if(w.includes(query)) best = Math.max(best, 55);
+  });
+  if(best) return best;
+
+  // subsequence match — letters appear in order, not necessarily together
+  let qi = 0;
+  for(let i=0; i<t.length && qi<query.length; i++){
+    if(t[i] === query[qi]) qi++;
+  }
+  if(qi === query.length) return 40;
+
+  // typo tolerance — allow small edit distance against any word
+  const maxDist = Math.max(1, Math.floor(query.length * 0.34));
+  let minDist = Infinity;
+  words.forEach(w=>{ minDist = Math.min(minDist, levenshtein(query, w)); });
+  if(minDist <= maxDist) return 30 - minDist;
+
+  return -1; // no match
+}
+
 function tallySVG(count){
   const groups = Math.ceil(count/5) || 0;
   let svgGroups = "";
@@ -599,6 +634,423 @@ async function saveWeekData(week, data){
   }catch(e){ console.error("Could not save week data", e); showToast("Couldn't save — try again"); }
 }
 
+/* ---------- profile ---------- */
+const EQUIPMENT_OPTIONS = [
+  { key:'full_gym',      label:'Full Gym (machines & cables)' },
+  { key:'barbell',       label:'Barbell' },
+  { key:'dumbbells',     label:'Dumbbells' },
+  { key:'bench',         label:'Adjustable Bench' },
+  { key:'bands',         label:'Resistance Bands' },
+  { key:'pullup_bar',    label:'Pull-up Bar' },
+  { key:'kettlebell',    label:'Kettlebell' },
+  { key:'smith_machine', label:'Smith Machine' },
+  { key:'none',          label:'None (Bodyweight only)' }
+];
+
+/* Where your icon images live, relative to this html file.
+   Change this one line if you host them somewhere else. */
+const EXERCISE_IMAGE_PATH = 'icons/';
+
+/* Exercise library keyed by equipment. 'none' = bodyweight, always available.
+   Add more keys (barbell, dumbbells, full_gym, etc.) as you create those icons. */
+const EXERCISE_LIBRARY = {
+  none: [
+    { name:'Push-up', img:'push-up-bodyweight.png' },
+    { name:'Incline Push-up', img:'incline-push-up-bodyweight.png' },
+    { name:'Squats', img:'squat-bodyweight.png' },
+    { name:'Reverse Lunge', img:'reverse-lunge-bodyweight.png' },
+    { name:'Walking Lunge', img:'walking-lunge-bodyweight.png' },
+    { name:'Glute Bridges', img:'glute-bridge-bodyweight.png' },
+    { name:'Single-leg Glute Bridge', img:'single-leg-glute-bridge-bodyweight.png' },
+    { name:'Plank', img:'plank-bodyweight.png' },
+    { name:'Side Plank', img:'side-plank-bodyweight.png' },
+    { name:'Dead Bug', img:'dead-bug-bodyweight.png' },
+    { name:'Bird Dog', img:'bird-dog-bodyweight.png' },
+    { name:'Mountain Climber', img:'mountain-climber-bodyweight.png' },
+    { name:'Superman', img:'superman-bodyweight.png' },
+    { name:'Pike Push-up', img:'pike-push-up-bodyweight.png' },
+    { name:'Bench Dip', img:'bench-dip-bodyweight.png' }
+  ],
+  bands: [
+    { name:'Chest Press', img:'chest-press-band.png' },
+    { name:'Row', img:'row-band.png' },
+    { name:'Pulldown', img:'pulldown-band.png' },
+    { name:'Shoulder Press', img:'shoulder-press-band.png' },
+    { name:'Lateral Raise', img:'lateral-raise-band.png' },
+    { name:'Front Raise', img:'front-raise-band.png' },
+    { name:'Face Pull', img:'face-pull-band.png' },
+    { name:'Bicep Curl', img:'bicep-curl-band.png' },
+    { name:'Hammer Curl', img:'hammer-curl-band.png' },
+    { name:'Tricep Pushdown', img:'tricep-pushdown-band.png' },
+    { name:'Overhead Extension', img:'overhead-extension-band.png' },
+    { name:'Squat', img:'squat-band.png' },
+    { name:'Romanian Deadlifts', img:'romanian-deadlift-band.png' },
+    { name:'Glute Kickback', img:'glute-kickbacks-band.png' },
+    { name:'Hip Abduction', img:'hip-abduction-band.png' }
+  ]
+};
+
+function getAvailableExercises(equipmentKeys){
+  const keys = new Set(equipmentKeys || []);
+  const pool = [...EXERCISE_LIBRARY.none]; // bodyweight is always available
+  Object.keys(EXERCISE_LIBRARY).forEach(libKey=>{
+    if(libKey !== 'none' && keys.has(libKey)) pool.push(...EXERCISE_LIBRARY[libKey]);
+  });
+  return pool;
+}
+
+const GOALS_OPTIONS = [
+  { key:'lose_fat',            label:'Lose fat' },
+  { key:'build_muscle',        label:'Build muscle' },
+  { key:'tone_up',             label:'Tone up' },
+  { key:'get_stronger',        label:'Get stronger' },
+  { key:'improve_fitness',     label:'Improve general fitness' },
+  { key:'improve_flexibility', label:'Improve flexibility / mobility' }
+];
+const REST_TIMER_OPTIONS = [30, 45, 60, 90, 120];
+const TIMER_ALERT_OPTIONS = [
+  { key:'sound',     label:'Sound' },
+  { key:'vibration', label:'Vibration' },
+  { key:'both',      label:'Sound + Vibration' },
+  { key:'silent',    label:'Silent' }
+];
+
+const KG_TO_LBS = 2.20462;
+function kgToDisplay(kg, units){ return units === 'lbs' ? Math.round(kg * KG_TO_LBS * 10) / 10 : kg; }
+function displayToKg(val, units){ const num = Number(val) || 0; return units === 'lbs' ? num / KG_TO_LBS : num; }
+function toDisplayWeight(kg){ return kgToDisplay(kg, userUnits); }
+function toStorageWeight(val){ return displayToKg(val, userUnits); }
+function unitLabel(){ return userUnits === 'lbs' ? 'lbs' : 'kg'; }
+async function refreshUserSettingsCache(){
+  const profile = await getProfile();
+  userUnits = profile.units || 'kg';
+  userRestSeconds = profile.restTimerSeconds || 30;
+  userTimerAlert = profile.timerAlert || 'sound';
+}
+
+function defaultProfile(){
+  return {
+    name: '',
+    gender: null,
+    location: null,
+    equipment: [],
+    goals: [],
+    units: 'kg',
+    restTimerSeconds: 30,
+    timerAlert: 'sound'
+  };
+}
+async function getProfile(){
+  try{
+    const res = await window.storage.get('user-profile');
+    if(res && res.value) return { ...defaultProfile(), ...JSON.parse(res.value) };
+  }catch(e){ /* fall through */ }
+  return defaultProfile();
+}
+async function saveProfile(profile){
+  try{
+    const result = await window.storage.set('user-profile', JSON.stringify(profile));
+    if(!result) throw new Error("no result");
+  }catch(e){ console.error("Could not save profile", e); showToast("Couldn't save profile"); }
+}
+async function setProfileName(name){
+  const profile = await getProfile();
+  profile.name = name;
+  await saveProfile(profile);
+}
+async function setProfileGender(gender){
+  const profile = await getProfile();
+  profile.gender = profile.gender === gender ? null : gender;
+  await saveProfile(profile);
+  await renderProfileModal();
+}
+async function setProfileLocation(loc){
+  const profile = await getProfile();
+  const newLoc = profile.location === loc ? null : loc;
+  profile.location = newLoc;
+  if(newLoc === 'gym'){
+    profile.equipment = EQUIPMENT_OPTIONS.filter(o=>o.key !== 'none').map(o=>o.key);
+  } else if(newLoc === 'home'){
+    profile.equipment = [];
+  }
+  await saveProfile(profile);
+  await renderProfileModal();
+}
+async function toggleProfileEquipment(key){
+  const profile = await getProfile();
+  const eq = new Set(profile.equipment);
+  if(key === 'none'){
+    eq.has('none') ? eq.clear() : (eq.clear(), eq.add('none'));
+  } else {
+    eq.delete('none');
+    eq.has(key) ? eq.delete(key) : eq.add(key);
+  }
+  profile.equipment = [...eq];
+  await saveProfile(profile);
+  await renderProfileModal();
+}
+async function toggleProfileGoal(key){
+  const profile = await getProfile();
+  const goals = new Set(profile.goals || []);
+  goals.has(key) ? goals.delete(key) : goals.add(key);
+  profile.goals = [...goals];
+  await saveProfile(profile);
+  await renderProfileModal();
+}
+async function setProfileUnits(units){
+  const profile = await getProfile();
+  profile.units = units;
+  await saveProfile(profile);
+  await renderProfileModal();
+}
+async function setProfileRestTimer(seconds){
+  const profile = await getProfile();
+  profile.restTimerSeconds = seconds;
+  await saveProfile(profile);
+  await renderProfileModal();
+}
+async function setProfileTimerAlert(key){
+  const profile = await getProfile();
+  profile.timerAlert = key;
+  await saveProfile(profile);
+  await renderProfileModal();
+}
+
+function subPageHeaderHTML(title){
+  return `
+    <div class="profile-subheader">
+      <button type="button" class="profile-back-btn" id="profileBackBtn">‹ Back</button>
+      <div class="finish-title" style="margin:0;">${escapeHTML(title)}</div>
+    </div>
+  `;
+}
+function profileHubHTML(profile){
+  return `
+    <div class="finish-title">Your Profile</div>
+    <div class="profile-identity">
+      <input type="text" id="profileNameInput" class="profile-name-input" placeholder="Your name" value="${escapeHTML(profile.name || '')}">
+      <div class="profile-gender-row" id="profileGenderRow">
+        <button type="button" class="plan-btn profile-gender-btn" data-gender="M">M</button>
+        <button type="button" class="plan-btn profile-gender-btn" data-gender="F">F</button>
+      </div>
+    </div>
+    <div class="profile-menu">
+      <button type="button" class="profile-menu-item" data-view="equipment"><span>Equipment</span><span class="pmi-arrow">›</span></button>
+      <button type="button" class="profile-menu-item" data-view="goals"><span>Goals</span><span class="pmi-arrow">›</span></button>
+      <button type="button" class="profile-menu-item" data-view="preferences"><span>Preferences</span><span class="pmi-arrow">›</span></button>
+      <button type="button" class="profile-menu-item" data-view="progress"><span>Progress</span><span class="pmi-arrow">›</span></button>
+      <button type="button" class="profile-menu-item" data-view="data"><span>Data</span><span class="pmi-arrow">›</span></button>
+      <button type="button" class="profile-menu-item" data-view="help"><span>Help</span><span class="pmi-arrow">›</span></button>
+    </div>
+  `;
+}
+function equipmentPageHTML(){
+  return `
+    ${subPageHeaderHTML('Equipment')}
+    <div class="profile-section-title" style="margin-top:0;">Training location</div>
+    <div class="plan-grid" id="locationGrid">
+      <button type="button" class="plan-btn" data-location="gym">Gym</button>
+      <button type="button" class="plan-btn" data-location="home">Home</button>
+    </div>
+    <div class="profile-section-title">Equipment available</div>
+    <div class="profile-hint">Select everything you have access to — this will be used to tailor your workout plans.</div>
+    <div id="equipmentList"></div>
+  `;
+}
+function goalsPageHTML(){
+  return `
+    ${subPageHeaderHTML('Goals')}
+    <div class="profile-hint" style="margin-top:0;">Select what you're working toward.</div>
+    <div id="goalsList"></div>
+  `;
+}
+function preferencesPageHTML(){
+  return `
+    ${subPageHeaderHTML('Preferences')}
+    <div class="profile-section-title" style="margin-top:0;">Units</div>
+    <div class="plan-grid" id="unitsGrid">
+      <button type="button" class="plan-btn" data-units="kg">Kilograms (kg)</button>
+      <button type="button" class="plan-btn" data-units="lbs">Pounds (lbs)</button>
+    </div>
+    <div class="profile-section-title">Rest timer</div>
+    <div class="profile-hint" style="margin-top:0;">Default rest between sets.</div>
+    <div class="plan-grid" id="restTimerGrid"></div>
+    <div class="profile-section-title">Timer alert</div>
+    <div class="profile-hint" style="margin-top:0;">How you're notified when rest is over.</div>
+    <div class="plan-grid" id="timerAlertGrid"></div>
+  `;
+}
+async function progressPageHTML(){
+  const startStr = await getProgramStart();
+  const week = startStr ? currentWeekFromStart(startStr) : null;
+  return `
+    ${subPageHeaderHTML('Progress')}
+    <div class="profile-hint" style="margin-top:0;">
+      ${week ? `You're in week ${week} of your progression plan.` : `You haven't started a progression plan yet.`}
+    </div>
+    <div class="profile-hint">Weekly check-in photos, weight, and body-fat tracking live in the Progression card on your home screen.</div>
+  `;
+}
+function dataPageHTML(){
+  return `
+    ${subPageHeaderHTML('Data')}
+    <div class="profile-hint" style="margin-top:0;">Your workouts, sets, and photos are stored on this device only.</div>
+    <button type="button" class="checkin-btn" id="resetProfileBtn" style="width:100%; margin-bottom:10px;">Reset profile info</button>
+    <button type="button" class="checkin-btn" id="clearHistoryBtn" style="width:100%; color:var(--rust); border-color:var(--rust);">Clear all workout history</button>
+  `;
+}
+function helpPageHTML(){
+  return `
+    ${subPageHeaderHTML('Help')}
+    <div class="profile-hint" style="margin-top:0;">
+      Rep Log tracks your workouts, rest timers, and weekly progress photos — all stored privately on this device.
+      <br><br>
+      Tap a workout to log sets, or Edit to build your own from your available equipment.
+    </div>
+  `;
+}
+
+function wireBackButton(){
+  const btn = $("profileBackBtn");
+  if(btn) btn.addEventListener('click', ()=>{ profileView = 'hub'; renderProfileModal(); });
+}
+
+async function renderProfileModal(){
+  const profile = await getProfile();
+  const body = $("profileModalBody");
+
+  if(profileView === 'hub'){
+    body.innerHTML = profileHubHTML(profile);
+    $("profileNameInput").addEventListener('change', (e)=> setProfileName(e.target.value.trim()));
+    $("profileGenderRow").querySelectorAll('.profile-gender-btn').forEach(btn=>{
+      btn.classList.toggle('active', btn.dataset.gender === profile.gender);
+      btn.addEventListener('click', ()=> setProfileGender(btn.dataset.gender));
+    });
+    body.querySelectorAll('.profile-menu-item').forEach(btn=>{
+      btn.addEventListener('click', ()=>{ profileView = btn.dataset.view; renderProfileModal(); });
+    });
+    return;
+  }
+
+  if(profileView === 'equipment'){
+    body.innerHTML = equipmentPageHTML();
+    $("locationGrid").querySelectorAll('.plan-btn').forEach(btn=>{
+      btn.classList.toggle('active', btn.dataset.location === profile.location);
+      btn.addEventListener('click', ()=> setProfileLocation(btn.dataset.location));
+    });
+    const eqList = $("equipmentList");
+    EQUIPMENT_OPTIONS.forEach(opt=>{
+      const done = profile.equipment.includes(opt.key);
+      const item = document.createElement('div');
+      item.className = `checklist-item ${done?'done':''}`;
+      item.innerHTML = `
+        <div class="checklist-label">${escapeHTML(opt.label)}</div>
+        <div class="checkbox"><svg viewBox="0 0 24 24" fill="none"><path d="M4 12l5 5L20 6" stroke="#15140F" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+      `;
+      item.addEventListener('click', ()=>toggleProfileEquipment(opt.key));
+      eqList.appendChild(item);
+    });
+    wireBackButton();
+    return;
+  }
+
+  if(profileView === 'goals'){
+    body.innerHTML = goalsPageHTML();
+    const goalsList = $("goalsList");
+    GOALS_OPTIONS.forEach(opt=>{
+      const done = (profile.goals || []).includes(opt.key);
+      const item = document.createElement('div');
+      item.className = `checklist-item ${done?'done':''}`;
+      item.innerHTML = `
+        <div class="checklist-label">${escapeHTML(opt.label)}</div>
+        <div class="checkbox"><svg viewBox="0 0 24 24" fill="none"><path d="M4 12l5 5L20 6" stroke="#15140F" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
+      `;
+      item.addEventListener('click', ()=>toggleProfileGoal(opt.key));
+      goalsList.appendChild(item);
+    });
+    wireBackButton();
+    return;
+  }
+
+  if(profileView === 'preferences'){
+    body.innerHTML = preferencesPageHTML();
+    $("unitsGrid").querySelectorAll('.plan-btn').forEach(btn=>{
+      btn.classList.toggle('active', btn.dataset.units === profile.units);
+      btn.addEventListener('click', ()=> setProfileUnits(btn.dataset.units));
+    });
+    const restGrid = $("restTimerGrid");
+    REST_TIMER_OPTIONS.forEach(sec=>{
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = `plan-btn ${profile.restTimerSeconds === sec ? 'active' : ''}`;
+      btn.textContent = `${sec} sec`;
+      btn.addEventListener('click', ()=> setProfileRestTimer(sec));
+      restGrid.appendChild(btn);
+    });
+    const alertGrid = $("timerAlertGrid");
+    TIMER_ALERT_OPTIONS.forEach(opt=>{
+      const btn = document.createElement('button');
+      btn.type = 'button';
+      btn.className = `plan-btn ${profile.timerAlert === opt.key ? 'active' : ''}`;
+      btn.textContent = opt.label;
+      btn.addEventListener('click', ()=> setProfileTimerAlert(opt.key));
+      alertGrid.appendChild(btn);
+    });
+    wireBackButton();
+    return;
+  }
+
+  if(profileView === 'progress'){
+    body.innerHTML = await progressPageHTML();
+    wireBackButton();
+    return;
+  }
+
+  if(profileView === 'data'){
+    body.innerHTML = dataPageHTML();
+    $("resetProfileBtn").addEventListener('click', async ()=>{
+      await saveProfile(defaultProfile());
+      showToast("Profile reset");
+      profileView = 'hub';
+      await renderProfileModal();
+    });
+    const clearBtn = $("clearHistoryBtn");
+    clearBtn.addEventListener('click', async ()=>{
+      if(clearBtn.dataset.armed !== '1'){
+        clearBtn.dataset.armed = '1';
+        clearBtn.textContent = 'Tap again to confirm';
+        setTimeout(()=>{ if(clearBtn.dataset.armed === '1'){ clearBtn.dataset.armed='0'; clearBtn.textContent = 'Clear all workout history'; } }, 3000);
+        return;
+      }
+      const keys = await getAllSessionKeys();
+      for(const k of keys){ try{ await window.storage.remove(k); }catch(e){ /* ignore */ } }
+      showToast("History cleared");
+      await renderAll();
+    });
+    wireBackButton();
+    return;
+  }
+
+  if(profileView === 'help'){
+    body.innerHTML = helpPageHTML();
+    wireBackButton();
+    return;
+  }
+}
+
+function openProfileModal(){
+  profileView = 'hub';
+  $("profileModal").classList.add('open');
+  renderProfileModal();
+}
+async function closeProfileModal(){
+  $("profileModal").classList.remove('open');
+  profileView = 'hub';
+  await refreshUserSettingsCache();
+  await renderPlanSection();
+  await renderStats();
+}
+
 /* ---------- helpers ---------- */
 function formatDuration(ms){
   const totalSec = Math.max(0, Math.floor(ms/1000));
@@ -622,18 +1074,18 @@ async function checkAndUpdatePR(exercise, weight, reps){
   const events = [];
   if(weight > record.maxWeight){
     record.maxWeight = weight; record.maxWeightReps = reps;
-    events.push({ type:'weight', detail:`Heaviest weight — ${weight}kg × ${reps}` });
+    events.push({ type:'weight', detail:`Heaviest weight — ${toDisplayWeight(weight)}${unitLabel()} × ${reps}` });
   }
   const wKey = String(weight);
   if(reps > (record.repsAtWeight[wKey] || 0)){
     record.repsAtWeight[wKey] = reps;
-    events.push({ type:'reps', detail:`Most reps at ${weight}kg — ${reps} reps` });
+    events.push({ type:'reps', detail:`Most reps at ${toDisplayWeight(weight)}${unitLabel()} — ${reps} reps` });
   }
   if(weight > 0){
     const est1RM = weight * (1 + reps/30);
     if(est1RM > record.best1RM){
       record.best1RM = est1RM; record.best1RMWeight = weight; record.best1RMReps = reps;
-      events.push({ type:'1rm', detail:`Estimated 1-rep max — ~${Math.round(est1RM)}kg` });
+      events.push({ type:'1rm', detail:`Estimated 1-rep max — ~${Math.round(toDisplayWeight(est1RM))}${unitLabel()}` });
     }
   }
   if(events.length){
@@ -734,7 +1186,26 @@ function formatRestTime(sec){
   const m = Math.floor(sec/60), s = sec%60;
   return m > 0 ? `${m}:${s.toString().padStart(2,'0')}` : `0:${s.toString().padStart(2,'0')}`;
 }
-function startRest(seconds, label){
+function fireTimerAlert(mode){
+  if(!mode || mode === 'silent') return;
+  if(mode === 'sound' || mode === 'both'){
+    try{
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const osc = ctx.createOscillator();
+      const gain = ctx.createGain();
+      osc.frequency.value = 880;
+      osc.connect(gain);
+      gain.connect(ctx.destination);
+      gain.gain.setValueAtTime(0.15, ctx.currentTime);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.35);
+    }catch(e){ /* audio not available on this device/browser, ignore */ }
+  }
+  if(mode === 'vibration' || mode === 'both'){
+    if(navigator.vibrate) navigator.vibrate([150,80,150]);
+  }
+}
+function startRest(seconds, label, alertMode){
   clearInterval(restInterval);
   let remaining = seconds;
   const bar = $("restBar");
@@ -747,6 +1218,7 @@ function startRest(seconds, label){
       clearInterval(restInterval);
       bar.classList.remove('show');
       showToast("Rest over — go!");
+      fireTimerAlert(alertMode);
       return;
     }
     $("restTime").textContent = formatRestTime(remaining);
@@ -875,7 +1347,8 @@ async function openPhotoModal(week){
     const current = await getWeekData(week);
     await saveWeekData(week, { photo: current.photo, weight: weight ? Number(weight) : null, bodyFat: bodyFat ? Number(bodyFat) : null });
     showToast("Check-in stats saved");
-    await refreshCheckinViews(week);
+    closePhotoModal();
+    await renderProgression();
   });
 
   $("photoModal").classList.add('open');
@@ -1001,7 +1474,7 @@ async function planExerciseNameSet(planKeys){
 async function quickLog(exercise, weightVal, repsVal, targetSets){
   const reps = Number(repsVal);
   if(!reps){ showToast("Add a rep count"); return; }
-  const weight = weightVal ? Number(weightVal) : 0;
+  const weight = weightVal ? toStorageWeight(weightVal) : 0;
   const newSet = { id:`${Date.now()}-${Math.random().toString(36).slice(2,7)}`, exercise, weight, reps, ts: Date.now() };
   const updated = await updateSession(todayKey, (s)=>{
     if(!s.startedAt) s.startedAt = Date.now();
@@ -1024,9 +1497,9 @@ async function quickLog(exercise, weightVal, repsVal, targetSets){
 
   const countForExercise = updated.sets.filter(s=>s.exercise === exercise).length;
   if(targetSets && countForExercise % targetSets === 0){
-    startRest(60, "Exercise done — rest before next");
+    startRest(userRestSeconds, "Exercise done — rest before next", userTimerAlert);
   } else {
-    startRest(30, "Rest between sets");
+    startRest(userRestSeconds, "Rest between sets", userTimerAlert);
   }
 }
 async function deleteSet(id){
@@ -1038,7 +1511,7 @@ async function editSet(id, weightVal, repsVal){
   if(!reps){ showToast("Add a rep count"); return; }
   await updateSession(todayKey, (s)=>{
     const target = s.sets.find(x=>x.id === id);
-    if(target){ target.weight = weightVal ? Number(weightVal) : 0; target.reps = reps; }
+    if(target){ target.weight = weightVal ? toStorageWeight(weightVal) : 0; target.reps = reps; }
   });
   showToast("Set updated");
   await renderAll();
@@ -1046,7 +1519,7 @@ async function editSet(id, weightVal, repsVal){
 function setItemHTML(s){
   return `
     <div class="set-item" data-id="${s.id}" data-weight="${s.weight}" data-reps="${s.reps}">
-      <span class="val">${s.weight}kg × ${s.reps}</span>
+      <span class="val">${toDisplayWeight(s.weight)}${unitLabel()} × ${s.reps}</span>
       <span class="set-actions">
         <button class="edit-btn" data-edit="${s.id}">Edit</button>
         <button class="del-btn" data-del="${s.id}">Remove</button>
@@ -1060,9 +1533,9 @@ function wireSetItems(container){
     const delBtn = item.querySelector('[data-del]');
     if(editBtn) editBtn.addEventListener('click', (e)=>{
       e.stopPropagation();
-      const w = item.dataset.weight, r = item.dataset.reps;
+      const w = toDisplayWeight(Number(item.dataset.weight)), r = item.dataset.reps;
       item.innerHTML = `
-        <input type="number" class="edit-weight" value="${w}" inputmode="decimal" placeholder="kg">
+        <input type="number" class="edit-weight" value="${w}" inputmode="decimal" placeholder="${unitLabel()}">
         <input type="number" class="edit-reps" value="${r}" inputmode="numeric" placeholder="reps">
         <span class="set-actions">
           <button class="edit-save">Save</button>
@@ -1097,7 +1570,7 @@ async function buildExerciseCard(ex, loggedSets, isCompleted){
   const repGoal = parseRepGoal(ex.target);
   const setNumber = targetSetsNum ? Math.min(loggedSets.length + 1, targetSetsNum) : loggedSets.length + 1;
   const lastLogged = loggedSets.length ? loggedSets[loggedSets.length - 1] : null;
-  const weightDefault = lastLogged ? lastLogged.weight : (ex.weight != null ? ex.weight : (prev ? prev.weight : ''));
+  const weightDefault = lastLogged ? toDisplayWeight(lastLogged.weight) : (ex.weight != null ? toDisplayWeight(ex.weight) : (prev ? toDisplayWeight(prev.weight) : ''));
 
   const bodyHTML = repGoal
     ? `
@@ -1125,13 +1598,13 @@ async function buildExerciseCard(ex, loggedSets, isCompleted){
       <div class="ex-icon-wrap">${iconSvg}</div>
       <div class="exercise-info">
         <div class="exercise-name">${escapeHTML(ex.name)}</div>
-        <div class="exercise-target">${escapeHTML(ex.target)}${ex.weight != null ? ` · ${ex.weight}kg` : ''}</div>
+        <div class="exercise-target">${escapeHTML(ex.target)}${ex.weight != null ? ` · ${toDisplayWeight(ex.weight)}${unitLabel()}` : ''}</div>
         ${ex.note ? `<div class="exercise-note">${escapeHTML(ex.note)}</div>` : ``}
-        ${prev ? `<div class="exercise-prev">Previous (${escapeHTML(prevLabel)}): <b>${prev.weight}kg × ${prev.reps}</b></div>` : ``}
+        ${prev ? `<div class="exercise-prev">Previous (${escapeHTML(prevLabel)}): <b>${toDisplayWeight(prev.weight)}${unitLabel()} × ${prev.reps}</b></div>` : ``}
         <div class="tally">${tallySVG(loggedSets.length)}<span class="tally-count">${loggedSets.length} logged</span></div>
       </div>
       <div class="exercise-side">
-        <div class="exercise-meta">${Math.round(volumeOf(loggedSets))} kg vol</div>
+        <div class="exercise-meta">${Math.round(toDisplayWeight(volumeOf(loggedSets)))} ${unitLabel()} vol</div>
         <button type="button" class="exercise-complete-btn ${isCompleted ? 'done' : ''}" data-complete="${escapeHTML(ex.name)}">${isCompleted ? '✓ Done' : 'Complete'}</button>
       </div>
     </div>
@@ -1266,7 +1739,8 @@ async function renderPlanSection(){
       });
 
       if(isEditing){
-        group.appendChild(buildTemplateEditor(key, exercises));
+        const profile = await getProfile();
+        group.appendChild(buildTemplateEditor(key, exercises, profile.equipment));
       } else {
         for(const ex of exercises){
           const logged = grouped.get(ex.name) || [];
@@ -1280,7 +1754,7 @@ async function renderPlanSection(){
   }
 }
 
-function buildTemplateEditor(key, exercises){
+function buildTemplateEditor(key, exercises, equipmentKeys){
   const wrap = document.createElement('div');
   wrap.className = 'template-editor';
 
@@ -1317,6 +1791,47 @@ function buildTemplateEditor(key, exercises){
     addRow.querySelector('.t-target').value = '';
     addRow.querySelector('.t-weight').value = '';
   });
+
+  const availableExercises = getAvailableExercises(equipmentKeys);
+  if(availableExercises.length){
+    const pickerHint = document.createElement('div');
+    pickerHint.className = 'profile-hint';
+    pickerHint.style.marginBottom = '6px';
+    pickerHint.textContent = 'Tap an exercise from your equipment to add it:';
+    wrap.appendChild(pickerHint);
+
+    const picker = document.createElement('div');
+    picker.className = 'exercise-picker';
+    availableExercises.forEach(ex=>{
+      const chip = document.createElement('button');
+      chip.type = 'button';
+      chip.className = 'exercise-picker-chip';
+      chip.dataset.name = ex.name;
+      chip.innerHTML = `<img src="${EXERCISE_IMAGE_PATH}${ex.img}" alt="${escapeHTML(ex.name)}"><span class="epc-label">${escapeHTML(ex.name)}</span>`;
+      chip.addEventListener('click', ()=>{
+        addRow.querySelector('.t-name').value = ex.name;
+        if(!addRow.querySelector('.t-target').value) addRow.querySelector('.t-target').value = '3 × 12';
+        addRow.querySelector('.t-target').focus();
+      });
+      picker.appendChild(chip);
+    });
+    wrap.appendChild(picker);
+
+    addRow.querySelector('.t-name').addEventListener('input', (e)=>{
+      const query = e.target.value;
+      const chips = [...picker.querySelectorAll('.exercise-picker-chip')];
+      if(!query.trim()){
+        chips.forEach(c=>{ c.style.display=''; c.style.order=''; });
+        return;
+      }
+      chips.forEach(chip=>{
+        const score = fuzzyScore(query, chip.dataset.name);
+        if(score < 0){ chip.style.display = 'none'; }
+        else { chip.style.display = ''; chip.style.order = String(1000 - Math.round(score)); }
+      });
+    });
+  }
+
   wrap.appendChild(addRow);
 
   const actions = document.createElement('div');
@@ -1377,7 +1892,7 @@ async function renderExtras(){
           <div class="exercise-name">${escapeHTML(name)}</div>
           <div class="tally">${tallySVG(exSets.length)}<span class="tally-count">${exSets.length} set${exSets.length===1?'':'s'}</span></div>
         </div>
-        <div class="exercise-meta">${Math.round(vol)} kg vol</div>
+        <div class="exercise-meta">${Math.round(toDisplayWeight(vol))} ${unitLabel()} vol</div>
       </div>
       <div class="quick-add">
         ${exSets.map(setItemHTML).join("")}
@@ -1393,7 +1908,8 @@ async function renderExtras(){
 async function renderStats(){
   const session = await getSession(todayKey);
   $("statSets").textContent = session.sets.length;
-  $("statVolume").textContent = Math.round(volumeOf(session.sets));
+  $("statVolume").textContent = Math.round(toDisplayWeight(volumeOf(session.sets)));
+  $("statVolumeLabel").textContent = `Volume (${unitLabel()})`;
 }
 async function renderHistory(){
   const keys = await getAllSessionKeys();
@@ -1420,7 +1936,7 @@ async function renderHistory(){
           <div class="history-date">${prettyDate(key)}</div>
           <div class="history-sub">${grouped.size} exercise${grouped.size===1?'':'s'} · ${sets.length} sets</div>
         </div>
-        <div class="history-vol">${Math.round(volumeOf(sets))} kg</div>
+        <div class="history-vol">${Math.round(toDisplayWeight(volumeOf(sets)))} ${unitLabel()}</div>
       `;
       container.appendChild(item);
     });
@@ -1480,7 +1996,7 @@ async function handleFinishWorkout(){
       <div class="finish-stat"><div class="finish-stat-num">${formatDuration(duration)}</div><div class="finish-stat-lbl">Duration</div></div>
       <div class="finish-stat"><div class="finish-stat-num">${totalSets}</div><div class="finish-stat-lbl">Total sets</div></div>
       <div class="finish-stat"><div class="finish-stat-num">${uniqueExercises}</div><div class="finish-stat-lbl">Exercises</div></div>
-      <div class="finish-stat"><div class="finish-stat-num">${Math.round(totalVolume)}</div><div class="finish-stat-lbl">Volume (kg)</div></div>
+      <div class="finish-stat"><div class="finish-stat-num">${Math.round(toDisplayWeight(totalVolume))}</div><div class="finish-stat-lbl">Volume (${unitLabel()})</div></div>
     </div>
     ${prs.length
       ? `<div class="finish-pr-title">🏆 New personal records</div>${prs.map(p=>`<div class="finish-pr-item">${escapeHTML(p.exercise)}<br>${escapeHTML(p.detail)}</div>`).join("")}`
@@ -1520,6 +2036,7 @@ async function renderRepeatButton(){
 
 /* ---------- render all ---------- */
 async function renderAll(){
+  await refreshUserSettingsCache();
   await renderPlanGrid();
   await renderPlanSection();
   await renderExtras();
@@ -1541,6 +2058,10 @@ async function init(){
   $("photoModalClose").addEventListener('click', closePhotoModal);
   $("photoModal").addEventListener('click', (e)=>{ if(e.target.id === 'photoModal') closePhotoModal(); });
   $("restSkip").addEventListener('click', skipRest);
+
+  $("profileBtn").addEventListener('click', openProfileModal);
+  $("profileModalClose").addEventListener('click', closeProfileModal);
+  $("profileModal").addEventListener('click', (e)=>{ if(e.target.id === 'profileModal') closeProfileModal(); });
 
   $("finishWorkoutBtn").addEventListener('click', handleFinishWorkout);
   $("finishModalClose").addEventListener('click', ()=> $("finishModal").classList.remove('open'));
