@@ -229,7 +229,7 @@
         "steps": ["Lie on bench, dumbbell in each hand at chest level", "Press dumbbells up until arms extended", "Lower with control"],
         "mistakes": ["Letting dumbbells drift too wide or too narrow"],
         "tips": ["Keep wrists stacked over elbows", "Control the descent for 2-3 seconds"] },
-      { "name": "Bent-over Row", "img": "bent-over-row-barbell.png", "muscle": "back",
+      { "name": "Bent-over Row", "img": "bent-over-row.png", "muscle": "back",
         "steps": ["Hinge at hips, back flat, bar hanging at arms' length", "Pull bar toward lower ribs", "Lower with control"],
         "mistakes": ["Rounding the back to pull heavier weight"],
         "tips": ["Keep core braced and back flat throughout", "Lead with your elbows, not your hands"] },
