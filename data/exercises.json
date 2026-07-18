@@ -229,10 +229,6 @@
         "steps": ["Lie on bench, dumbbell in each hand at chest level", "Press dumbbells up until arms extended", "Lower with control"],
         "mistakes": ["Letting dumbbells drift too wide or too narrow"],
         "tips": ["Keep wrists stacked over elbows", "Control the descent for 2-3 seconds"] },
-      { "name": "Bent-over Row", "img": "bent-over-row.png", "muscle": "back",
-        "steps": ["Hinge at hips, back flat, bar hanging at arms' length", "Pull bar toward lower ribs", "Lower with control"],
-        "mistakes": ["Rounding the back to pull heavier weight"],
-        "tips": ["Keep core braced and back flat throughout", "Lead with your elbows, not your hands"] },
       { "name": "Bent-over Row", "img": "bend-over-rows.png", "muscle": "back",
         "steps": ["Hinge at hips, back flat, dumbbell in each hand", "Pull dumbbells toward your ribs", "Lower with control"],
         "mistakes": ["Rounding the back to pull heavier weight"],
@@ -411,10 +407,39 @@
         "tips": ["Step feet slightly ahead of the bar path for a more natural squat", "Keep core braced throughout"] }
     ]
   },
+  "warmupVariants": {
+    "gym": [
+      { "name": "Brisk walk or incline treadmill", "detail": "2–3 minutes — comfortable pace that gets you slightly warm." },
+      { "name": "Arm circles", "detail": "10 forward + 10 backward — small circles first, then larger ones." },
+      { "name": "Hip circles", "detail": "10 each direction — hands on hips, slow controlled circles." },
+      { "name": "Bodyweight Squats", "detail": "10 reps — controlled movement, full range of motion." },
+      { "name": "Walking Lunges", "detail": "8 each leg — focus on balance and opening the hips. (Use reverse lunges if space is limited.)" },
+      { "name": "Cat-Cow Stretch", "detail": "8 reps — great for warming up your spine before lifting." },
+      { "name": "Glute Bridges", "detail": "10–15 reps — pause 1 second at the top and squeeze your glutes." }
+    ],
+    "home": [
+      { "name": "March in Place", "detail": "1 minute — swing your arms and gradually lift your knees higher." },
+      { "name": "Jumping Jacks", "detail": "30–45 seconds — use step jacks for a low-impact option." },
+      { "name": "Arm Circles", "detail": "10 forward + 10 backward." },
+      { "name": "Hip Circles", "detail": "10 each direction." },
+      { "name": "Bodyweight Squats", "detail": "10 reps — slow and controlled." },
+      { "name": "Glute Bridges", "detail": "12 reps — squeeze at the top for 1 second." },
+      { "name": "Bird Dogs", "detail": "8 reps per side — keep your hips level and move slowly." },
+      { "name": "Reverse Lunges", "detail": "6 reps per leg — just enough to wake up your legs and improve balance." }
+    ]
+  },
   "workouts": {
     "warmup": {
       "key": "warmup", "label": "Warm-up", "type": "checklist",
-      "exercises": ["Arm circles", "Marching in place", "Bodyweight squats", "Hip circles", "Light stretching"]
+      "exercises": [
+        { "name": "Brisk walk or incline treadmill", "detail": "2–3 minutes — comfortable pace that gets you slightly warm." },
+        { "name": "Arm circles", "detail": "10 forward + 10 backward — small circles first, then larger ones." },
+        { "name": "Hip circles", "detail": "10 each direction — hands on hips, slow controlled circles." },
+        { "name": "Bodyweight Squats", "detail": "10 reps — controlled movement, full range of motion." },
+        { "name": "Walking Lunges", "detail": "8 each leg — focus on balance and opening the hips." },
+        { "name": "Cat-Cow Stretch", "detail": "8 reps — great for warming up your spine before lifting." },
+        { "name": "Glute Bridges", "detail": "10–15 reps — pause 1 second at the top and squeeze your glutes." }
+      ]
     },
     "lower": {
       "key": "lower", "label": "Lower Body", "type": "strength", "focus": "Glutes, legs, waist tightening",

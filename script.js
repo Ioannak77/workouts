@@ -42,6 +42,7 @@ let MUSCLE_GROUP_OPTIONS = [];
 let IMAGE_FOLDERS = {};
 let EXERCISE_LIBRARY = {};
 let WORKOUTS = {};
+let WARMUP_VARIANTS = {};
 const EXERCISE_IMAGE_BASE = 'exercise-images/';
 
 async function loadExerciseData(){
@@ -56,6 +57,7 @@ async function loadExerciseData(){
     IMAGE_FOLDERS = data.imageFolders || {};
     EXERCISE_LIBRARY = data.exerciseLibrary || {};
     WORKOUTS = data.workouts || {};
+    WARMUP_VARIANTS = data.warmupVariants || {};
   }catch(e){
     console.error("Could not load data/exercises.json — make sure this app is served over http(s), not opened as a local file", e);
     showToast("Couldn't load exercise data");
@@ -75,6 +77,17 @@ function findExerciseImage(name){
   }
   return null;
 }
+
+function normalizeChecklistItem(item){
+  if(typeof item === 'string') return { name: item, detail: '' };
+  return { name: item.name, detail: item.detail || '' };
+}
+function getWarmupExercises(profile){
+  const loc = profile && profile.location;
+  if(loc && WARMUP_VARIANTS[loc]) return WARMUP_VARIANTS[loc];
+  return WARMUP_VARIANTS.gym || (WORKOUTS.warmup && WORKOUTS.warmup.exercises) || [];
+}
+
 function findExerciseData(name){
   for(const libKey of Object.keys(EXERCISE_LIBRARY)){
     const found = EXERCISE_LIBRARY[libKey].find(e=>e.name === name);
@@ -1432,6 +1445,7 @@ async function renderPlanSection(){
   const customList = await getCustomWorkouts();
   const orderedKeys = [...PLAN_ORDER, ...customList.map(c=>c.key)];
   const activePlans = orderedKeys.filter(k=>session.plan.includes(k));
+  const profile = await getProfile();
 
   if(activePlans.length === 0){
     container.innerHTML = "";
@@ -1469,12 +1483,19 @@ async function renderPlanSection(){
       });
       w.exercises.forEach(name=>{
         const done = session.checklist.includes(name);
+        const checklistExercises = (key === 'warmup') ? getWarmupExercises(profile) : w.exercises;
+      checklistExercises.forEach(raw=>{
+        const { name, detail } = normalizeChecklistItem(raw);
+        const done = session.checklist.includes(name);
         const item = document.createElement("div");
         item.className = `checklist-item ${done?'done':''}`;
         const iconSvg = getIcon(name) || GENERIC_ICON;
         item.innerHTML = `
           <div class="ex-icon-wrap" data-zoom>${iconSvg}</div>
-          <div class="checklist-label">${escapeHTML(name)}</div>
+          <div class="checklist-label-wrap">
+            <div class="checklist-label">${escapeHTML(name)}</div>
+            ${detail ? `<div class="checklist-detail">${escapeHTML(detail)}</div>` : ``}
+          </div>
           <div class="checkbox"><svg viewBox="0 0 24 24" fill="none"><path d="M4 12l5 5L20 6" stroke="#15140F" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/></svg></div>
         `;
         item.addEventListener('click', ()=>toggleChecklistItem(name));

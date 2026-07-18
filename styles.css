@@ -154,8 +154,11 @@ main{padding:24px 20px 0;}
 .checklist-item.done .checkbox{background:var(--moss); border-color:var(--moss);}
 .checkbox svg{display:none; width:12px; height:12px;}
 .checklist-item.done .checkbox svg{display:block;}
-.checklist-label{font-size:14px; flex:1;}
+.checklist-label-wrap{flex:1; min-width:0;}
+.checklist-label{font-size:14px;}
+.checklist-detail{font-size:11px; color:var(--text-dim); margin-top:2px; line-height:1.4;}
 .checklist-item.done .checklist-label{color:var(--text-dim); text-decoration:line-through;}
+.checklist-item.done .checklist-detail{color:var(--text-dim); opacity:0.6;}
 
 .reset-app-warning{font-size:11px; color:var(--rust); line-height:1.5; margin-bottom:8px; text-align:center;}
 
