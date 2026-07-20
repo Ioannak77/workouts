@@ -98,19 +98,6 @@
 
 <datalist id="exerciseOptions"></datalist>
 
-<div id="debugErrorBox" style="display:none; position:fixed; top:0; left:0; right:0; background:#B0562E; color:#fff; font-family:monospace; font-size:11px; padding:10px; z-index:9999; max-height:40vh; overflow-y:auto; white-space:pre-wrap;"></div>
-<script>
-  window.addEventListener('error', function(e){
-    const box = document.getElementById('debugErrorBox');
-    box.style.display = 'block';
-    box.textContent += 'ERROR: ' + e.message + '\n  at ' + e.filename + ':' + e.lineno + ':' + e.colno + '\n\n';
-  });
-  window.addEventListener('unhandledrejection', function(e){
-    const box = document.getElementById('debugErrorBox');
-    box.style.display = 'block';
-    box.textContent += 'PROMISE REJECTION: ' + (e.reason && e.reason.message ? e.reason.message : e.reason) + '\n\n';
-  });
-</script>
-<script src="script.js"></script>
+<script src="script.js?v=2"></script>
 </body>
 </html>

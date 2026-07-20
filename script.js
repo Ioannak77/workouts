@@ -47,7 +47,7 @@ const EXERCISE_IMAGE_BASE = 'exercise-images/';
 
 async function loadExerciseData(){
   try{
-    const res = await fetch('data/exercises.json');
+    const res = await fetch('data/exercises.json?v=2', { cache: 'no-store' });
     const data = await res.json();
     EQUIPMENT_OPTIONS = data.equipmentOptions || [];
     GOALS_OPTIONS = data.goalsOptions || [];
