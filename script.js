@@ -124,6 +124,16 @@ async function addCustomWorkout(label){
   await saveCustomWorkouts(list);
   return key;
 }
+
+async function renameCustomWorkout(key, newLabel){
+  const list = await getCustomWorkouts();
+  const found = list.find(w=>w.key === key);
+  if(found){
+    found.label = newLabel;
+    await saveCustomWorkouts(list);
+  }
+}
+
 async function getHiddenWorkouts(){
   try{
     const res = await window.storage.get('hidden-workouts');
@@ -708,7 +718,14 @@ async function renderProfileModal(){
     body.innerHTML = dataPageHTML();
     $("exportDataBtn").addEventListener('click', exportAllData);
     $("importDataBtn").addEventListener('click', ()=> $("dataImportInput").click());
-    $("resetProfileBtn").addEventListener('click', async ()=>{
+    const resetProfileBtn = $("resetProfileBtn");
+    resetProfileBtn.addEventListener('click', async ()=>{
+      if(resetProfileBtn.dataset.armed !== '1'){
+        resetProfileBtn.dataset.armed = '1';
+        resetProfileBtn.textContent = 'Tap again to confirm';
+        setTimeout(()=>{ if(resetProfileBtn.dataset.armed === '1'){ resetProfileBtn.dataset.armed='0'; resetProfileBtn.textContent = 'Reset profile info'; } }, 4000);
+        return;
+      }
       await saveProfile(defaultProfile());
       showToast("Profile reset");
       profileView = 'hub';
@@ -719,7 +736,7 @@ async function renderProfileModal(){
       if(clearBtn.dataset.armed !== '1'){
         clearBtn.dataset.armed = '1';
         clearBtn.textContent = 'Tap again to confirm';
-        setTimeout(()=>{ if(clearBtn.dataset.armed === '1'){ clearBtn.dataset.armed='0'; clearBtn.textContent = 'Clear all workout history'; } }, 3000);
+        setTimeout(()=>{ if(clearBtn.dataset.armed === '1'){ clearBtn.dataset.armed='0'; clearBtn.textContent = 'Clear all workout history'; } }, 4000);
         return;
       }
       const keys = await getAllSessionKeys();
@@ -732,7 +749,7 @@ async function renderProfileModal(){
     resetAppBtn.addEventListener('click', async ()=>{
       if(resetAppBtn.dataset.armed !== '1'){
         resetAppBtn.dataset.armed = '1';
-        resetAppBtn.textContent = 'Export a backup first! Tap again to erase everything';
+        resetAppBtn.textContent = 'Tap again to confirm — erases everything';
         setTimeout(()=>{ if(resetAppBtn.dataset.armed === '1'){ resetAppBtn.dataset.armed='0'; resetAppBtn.textContent = 'Reset app (erase everything)'; } }, 4000);
         return;
       }
@@ -1733,8 +1750,8 @@ async function renderPlanSection(){
         if(delBtn.dataset.armed !== '1'){
           delBtn.dataset.armed = '1';
           delBtn.classList.add('group-edit-btn-delete');
-          delBtn.textContent = 'Tap again to delete';
-          setTimeout(()=>{ if(delBtn.dataset.armed === '1'){ delBtn.dataset.armed = '0'; delBtn.classList.remove('group-edit-btn-delete'); delBtn.textContent = 'Delete'; } }, 3000);
+          delBtn.textContent = 'Tap again to confirm';
+          setTimeout(()=>{ if(delBtn.dataset.armed === '1'){ delBtn.dataset.armed = '0'; delBtn.classList.remove('group-edit-btn-delete'); delBtn.textContent = 'Delete'; } }, 4000);
           return;
         }
         await deleteWorkout(key);
@@ -1770,24 +1787,56 @@ async function renderPlanSection(){
       if(exercises.length === 0) editingGroups.add(key);
       const isEditing = editingGroups.has(key);
       const toggleLabel = isEditing ? 'Delete' : 'Edit';
+      const isCustom = key.startsWith('custom-');
       group.innerHTML = `
         <div class="plan-group-header">
           <div class="plan-group-header-top">
-            <div>
-              <div class="plan-group-title">${escapeHTML(w.label)}</div>
+            <div class="plan-group-title-wrap">
+              <div class="plan-group-title-row">
+                <div class="plan-group-title">${escapeHTML(w.label)}</div>
+                ${isCustom ? `<button type="button" class="plan-group-rename-btn" data-rename="${key}" aria-label="Rename">✎</button>` : ``}
+              </div>
               <div class="plan-group-focus">${escapeHTML(w.focus)}</div>
+              <div class="plan-group-rename-form" id="renameForm-${key}" style="display:none;">
+                <input type="text" class="plan-group-rename-input" value="${escapeHTML(w.label)}">
+                <button type="button" class="plan-group-rename-save" data-save-rename="${key}">Save</button>
+                <button type="button" class="plan-group-rename-cancel" data-cancel-rename="${key}">Cancel</button>
+              </div>
             </div>
             <button class="group-edit-btn ${isEditing ? 'group-edit-btn-delete' : ''}" data-group-edit="${key}">${toggleLabel}</button>
           </div>
         </div>
       `;
+      if(isCustom){
+        const renameBtn = group.querySelector('.plan-group-rename-btn');
+        const renameForm = group.querySelector(`#renameForm-${key}`);
+        const titleRow = group.querySelector('.plan-group-title-row');
+        renameBtn.addEventListener('click', ()=>{
+          titleRow.style.display = 'none';
+          group.querySelector('.plan-group-focus').style.display = 'none';
+          renameForm.style.display = 'flex';
+          renameForm.querySelector('input').focus();
+        });
+        renameForm.querySelector('[data-save-rename]').addEventListener('click', async ()=>{
+          const newLabel = renameForm.querySelector('input').value.trim();
+          if(!newLabel){ showToast("Name can't be empty"); return; }
+          await renameCustomWorkout(key, newLabel);
+          showToast("Workout renamed");
+          await renderPlanSection();
+        });
+        renameForm.querySelector('[data-cancel-rename]').addEventListener('click', ()=>{
+          titleRow.style.display = 'flex';
+          group.querySelector('.plan-group-focus').style.display = 'block';
+          renameForm.style.display = 'none';
+        });
+      }
       const editBtn = group.querySelector('.group-edit-btn');
       if(editBtn) editBtn.addEventListener('click', async ()=>{
         if(isEditing){
           if(editBtn.dataset.armed !== '1'){
             editBtn.dataset.armed = '1';
-            editBtn.textContent = 'Tap again to delete';
-            setTimeout(()=>{ if(editBtn.dataset.armed === '1'){ editBtn.dataset.armed = '0'; editBtn.textContent = 'Delete'; } }, 3000);
+            editBtn.textContent = 'Tap again to confirm';
+            setTimeout(()=>{ if(editBtn.dataset.armed === '1'){ editBtn.dataset.armed = '0'; editBtn.textContent = 'Delete'; } }, 4000);
             return;
           }
           await deleteWorkout(key);
@@ -1813,6 +1862,42 @@ async function renderPlanSection(){
   }
 }
 
+function makeSortable(container, itemSelector){
+  let dragEl = null;
+  container.addEventListener('pointerdown', (e)=>{
+    const handle = e.target.closest('.drag-handle');
+    if(!handle) return;
+    const item = handle.closest(itemSelector);
+    if(!item) return;
+    e.preventDefault();
+    dragEl = item;
+    dragEl.classList.add('dragging');
+    try{ handle.setPointerCapture(e.pointerId); }catch(err){ /* ignore */ }
+
+    const onMove = (ev)=>{
+      if(!dragEl) return;
+      const items = [...container.querySelectorAll(itemSelector)].filter(i=>i!==dragEl);
+      const y = ev.clientY;
+      for(const it of items){
+        const rect = it.getBoundingClientRect();
+        if(y > rect.top && y < rect.bottom){
+          if(y < rect.top + rect.height/2) container.insertBefore(dragEl, it);
+          else container.insertBefore(dragEl, it.nextSibling);
+          break;
+        }
+      }
+    };
+    const onUp = ()=>{
+      if(dragEl) dragEl.classList.remove('dragging');
+      dragEl = null;
+      document.removeEventListener('pointermove', onMove);
+      document.removeEventListener('pointerup', onUp);
+    };
+    document.addEventListener('pointermove', onMove);
+    document.addEventListener('pointerup', onUp);
+  });
+}
+
 function buildTemplateEditor(key, exercises, equipmentKeys){
   const wrap = document.createElement('div');
   wrap.className = 'template-editor';
@@ -1821,6 +1906,7 @@ function buildTemplateEditor(key, exercises, equipmentKeys){
     const row = document.createElement('div');
     row.className = 'template-row';
     row.innerHTML = `
+      <span class="drag-handle" aria-label="Drag to reorder">⠿</span>
       <input class="t-name" value="${escapeHTML(name)}" placeholder="Exercise name">
       <input class="t-target" value="${escapeHTML(target)}" placeholder="e.g. 3 × 12">
       <input class="t-weight" type="number" inputmode="decimal" min="0" step="0.5" value="${weight != null ? weight : ''}" placeholder="kg">
@@ -1931,6 +2017,7 @@ function buildTemplateEditor(key, exercises, equipmentKeys){
   }
 
   wrap.appendChild(addRow);
+  makeSortable(wrap, '.template-row:not(.template-add-row)');
 
   const actions = document.createElement('div');
   actions.className = 'template-actions';
@@ -2123,6 +2210,14 @@ async function renderAll(){
   await updateWorkoutBar();
 }
 
+function hideSplashScreen(){
+  const splash = document.getElementById('splashScreen');
+  if(splash){
+    splash.classList.add('hide');
+    setTimeout(()=> splash.remove(), 500);
+  }
+}
+
 async function init(){
   const now = new Date();
   todayKey = dateKey(now);
@@ -2186,6 +2281,8 @@ async function init(){
     }
     e.target.value = "";
   });
+
+  hideSplashScreen();
 }
 
 init();

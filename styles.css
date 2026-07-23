@@ -131,6 +131,8 @@ main{padding:24px 20px 0;}
 .template-row .t-target{flex:1.1; min-width:80px;}
 .template-row .t-weight{flex:0.7; min-width:56px;}
 .template-row .t-remove{background:none; border:none; color:var(--rust); font-size:16px; cursor:pointer; padding:0 6px; flex-shrink:0;}
+.drag-handle{color:var(--text-dim); font-size:18px; cursor:grab; touch-action:none; flex-shrink:0; display:flex; align-items:center; padding:0 4px; user-select:none;}
+.template-row.dragging{opacity:0.4; background:var(--surface-2); border-radius:8px;}
 .template-add-row{border-top:1px dashed var(--border); padding-top:10px; margin-top:2px;}
 .template-add-row .t-add{background:var(--moss); color:var(--bg); border:none; border-radius:8px; padding:0 14px; font-weight:600; font-size:13px; cursor:pointer; flex-shrink:0;}
 .template-actions{display:flex; gap:8px; margin-top:6px;}
@@ -188,6 +190,14 @@ main{padding:24px 20px 0;}
 .eim-list{margin:0; padding-left:18px; font-size:13px; line-height:1.6; color:var(--text);}
 .eim-list li{margin-bottom:4px;}
 .eim-empty{font-size:12px; color:var(--text-dim); font-style:italic;}
+
+.plan-group-title-row{display:flex; align-items:center; gap:8px;}
+.plan-group-rename-btn{background:none; border:none; color:var(--text-dim); font-size:14px; cursor:pointer; padding:0;}
+.plan-group-rename-form{display:flex; gap:6px; margin-top:4px;}
+.plan-group-rename-form input{flex:1; padding:8px; font-size:13px;}
+.plan-group-rename-save, .plan-group-rename-cancel{border:none; border-radius:6px; padding:8px 12px; font-size:12px; font-weight:600; cursor:pointer; flex-shrink:0;}
+.plan-group-rename-save{background:var(--moss); color:var(--bg);}
+.plan-group-rename-cancel{background:var(--surface-2); color:var(--text-dim);}
 
 .quick-add{display:none; margin-top:12px; padding-top:12px; border-top:1px solid var(--border);}
 .quick-add.open{display:block;}

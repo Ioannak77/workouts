@@ -5,7 +5,7 @@
   <meta name="theme-color" content="#15140F">
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0">
-<title>Rep Log</title>
+<title>PumpPal</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Oswald:wght@500;600;700&family=Inter:wght@400;500;600&family=JetBrains+Mono:wght@400;500;700&display=swap" rel="stylesheet">
 <link rel="stylesheet" href="styles.css">
@@ -13,7 +13,7 @@
   html, body { background:#15140F; margin:0; padding:0; }
   #splashScreen{position:fixed; inset:0; background:#15140F; display:flex; flex-direction:column; align-items:center; justify-content:center; z-index:99999; transition:opacity .4s ease;}
   #splashScreen.hide{opacity:0; pointer-events:none;}
-  #splashScreen .splash-logo{width:64px; height:64px; margin-bottom:16px;}
+  #splashScreen .splash-logo{width:120px; height:120px; margin-bottom:12px; object-fit:contain;}
   #splashScreen .splash-title{font-family:'Oswald',sans-serif; font-weight:700; font-size:30px; letter-spacing:.05em; text-transform:uppercase; color:#EFEAE0;}
   #splashScreen .splash-title span{color:#8A9A5B;}
   #splashScreen .splash-sub{font-family:'JetBrains Mono',monospace; font-size:11px; letter-spacing:.14em; text-transform:uppercase; color:#9A968A; margin-top:10px;}
@@ -27,14 +27,8 @@
 <body>
 
 <div id="splashScreen">
-  <svg class="splash-logo" viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-    <rect x="4" y="42" width="14" height="16" rx="3" fill="#D8A24A"/>
-    <rect x="82" y="42" width="14" height="16" rx="3" fill="#D8A24A"/>
-    <rect x="14" y="46" width="8" height="8" fill="#8A9A5B"/>
-    <rect x="78" y="46" width="8" height="8" fill="#8A9A5B"/>
-    <rect x="20" y="48" width="60" height="4" fill="#8A9A5B"/>
-  </svg>
-  <div class="splash-title">REP <span>LOG</span></div>
+  <img class="splash-logo" src="icons/mascot/flexing.png" alt="PumpPal">
+  <div class="splash-title">PUMP<span>PAL</span></div>
   <div class="splash-sub">Loading your workouts</div>
   <div class="splash-dots">
     <div class="splash-dot"></div>
@@ -119,7 +113,7 @@
     </button>
     <div class="eyebrow" id="todayLabel">—</div>
   </div>
-  <h1>REP <span>LOG</span></h1>
+  <h1>PUMP<span>PAL</span></h1>
   <div class="stats">
     <div class="stat"><div class="num" id="statSets">0</div><div class="lbl">Sets today</div></div>
     <div class="stat"><div class="num" id="statVolume">0</div><div class="lbl" id="statVolumeLabel">Volume (kg)</div></div>
