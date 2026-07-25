@@ -10,7 +10,7 @@
     { "key": "full_gym",      "label": "Full Gym (Machines & Cables)" },
     { "key": "none",          "label": "Bodyweight Only" }
   ],
-  "restTimerOptions": [30, 45, 60, 90, 120],
+  "restTimerOptions": [30, 45, 60, 90, 120, 150, 180, 210, 240, 270, 300],
   "timerAlertOptions": [
     { "key": "sound",     "label": "Sound" },
     { "key": "vibration", "label": "Vibration" },

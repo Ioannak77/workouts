@@ -35,7 +35,7 @@ let userTimerAlert = 'sound';
 
 /* ---------- data loaded from data/exercises.json ---------- */
 let EQUIPMENT_OPTIONS = [];
-let REST_TIMER_OPTIONS = [30, 45, 60, 90, 120];
+let REST_TIMER_OPTIONS = [30, 45, 60, 90, 120, 150, 180, 210, 240, 270, 300];
 let TIMER_ALERT_OPTIONS = [];
 let MUSCLE_GROUP_OPTIONS = [];
 let IMAGE_FOLDERS = {};
@@ -576,7 +576,7 @@ async function exportAllData(){
     const url = URL.createObjectURL(blob);
     const a = document.createElement('a');
     a.href = url;
-    a.download = `rep-log-backup-${todayKey}.json`;
+    a.download = `pumppal-backup-${todayKey}.json`;
     document.body.appendChild(a);
     a.click();
     a.remove();
@@ -612,15 +612,14 @@ function helpPageHTML(){
   return `
     ${subPageHeaderHTML('Help')}
     <div class="profile-hint" style="margin-top:0;">
-      Rep Log tracks your workouts, rest timers, and weekly progress photos — all stored privately on this device.
+      PumpPal tracks your workouts, rest timers, and weekly progress photos — all stored privately on this device.
       <br><br>
       Tap a workout to log sets, or Edit to build your own from your available equipment.
     </div>
     <div class="profile-menu" style="margin-top:16px;">
-      <a class="profile-menu-item" href="${mailtoLink('Rep Log — Bug report', 'Describe the bug here:')}"><span>🐞 Report a bug</span></a>
-      <a class="profile-menu-item" href="${mailtoLink('Rep Log — Feature suggestion', 'Describe your idea here:')}"><span>💡 Suggest a feature</span></a>
-      <a class="profile-menu-item" href="${mailtoLink('Rep Log — Exercise request', 'Which exercise would you like added?')}"><span>🏋 Request an exercise</span></a>
-    </div>
+      <a class="profile-menu-item" href="${mailtoLink('PumpPal — Bug report', 'Describe the bug here:')}"><span>🐞 Report a bug</span></a>
+      <a class="profile-menu-item" href="${mailtoLink('PumpPal — Feature suggestion', 'Describe your idea here:')}"><span>💡 Suggest a feature</span></a>
+      <a class="profile-menu-item" href="${mailtoLink('PumpPal — Exercise request', 'Which exercise would you like added?')}"><span>🏋 Request an exercise</span></a>
     <div class="help-footer">
       <div>Version ${APP_VERSION}</div>
       <div>Built with ❤️ by Ioanna</div>
@@ -676,7 +675,7 @@ async function renderProfileModal(){
       const btn = document.createElement('button');
       btn.type = 'button';
       btn.className = `plan-btn ${profile.restTimerSeconds === sec ? 'active' : ''}`;
-      btn.textContent = `${sec} sec`;
+      btn.textContent = formatRestSeconds(sec);
       btn.addEventListener('click', ()=> setProfileRestTimer(sec));
       restGrid.appendChild(btn);
     });
@@ -1207,6 +1206,13 @@ async function getPreviousPerformance(exerciseName){
 
 /* ---------- rest timer ---------- */
 let restInterval = null;
+function formatRestSeconds(sec){
+  if(sec < 60) return `${sec}s`;
+  const m = Math.floor(sec/60);
+  const s = sec % 60;
+  return s === 0 ? `${m}m` : `${m}m ${s}s`;
+}
+
 function formatRestTime(sec){
   const m = Math.floor(sec/60), s = sec%60;
   return m > 0 ? `${m}:${s.toString().padStart(2,'0')}` : `0:${s.toString().padStart(2,'0')}`;
@@ -1638,7 +1644,7 @@ async function buildExerciseCard(ex, loggedSets, isCompleted){
       <div class="ex-icon-wrap" data-zoom>${iconSvg}</div>
       <div class="exercise-info">
         <div class="exercise-name">${escapeHTML(ex.name)}</div>
-        <div class="exercise-target">${escapeHTML(ex.target)}${ex.weight != null ? ` · ${toDisplayWeight(ex.weight)}${unitLabel()}` : ''} · Rest ${getExerciseRestSeconds(ex.name)}s</div>
+        <div class="exercise-target">${escapeHTML(ex.target)}${ex.weight != null ? ` · ${toDisplayWeight(ex.weight)}${unitLabel()}` : ''} · Rest ${formatRestSeconds(getExerciseRestSeconds(ex.name))}</div>
         ${ex.note ? `<div class="exercise-note">${escapeHTML(ex.note)}</div>` : ``}
         ${prev ? `<div class="exercise-prev">Previous (${escapeHTML(prevLabel)}): <b>${toDisplayWeight(prev.weight)}${unitLabel()} × ${prev.reps}</b></div>` : ``}
         <div class="tally">${tallySVG(loggedSets.length)}<span class="tally-count">${loggedSets.length} logged</span></div>
@@ -2210,15 +2216,33 @@ async function renderAll(){
   await updateWorkoutBar();
 }
 
+let splashProgressInterval = null;
+function startSplashProgress(){
+  const fill = document.getElementById('splashProgressFill');
+  if(!fill) return;
+  let pct = 0;
+  splashProgressInterval = setInterval(()=>{
+    pct = Math.min(90, pct + Math.random()*8);
+    fill.style.width = pct + '%';
+  }, 180);
+}
 function hideSplashScreen(){
+  const fill = document.getElementById('splashProgressFill');
+  clearInterval(splashProgressInterval);
+  if(fill) fill.style.width = '100%';
   const splash = document.getElementById('splashScreen');
-  if(splash){
-    splash.classList.add('hide');
-    setTimeout(()=> splash.remove(), 500);
-  }
+  setTimeout(()=>{
+    if(splash){
+      splash.classList.add('hide');
+      setTimeout(()=> splash.remove(), 300);
+    }
+    document.body.classList.remove('splash-active');
+  }, 250);
 }
 
 async function init(){
+  document.body.classList.add('splash-active');
+  startSplashProgress();
   const now = new Date();
   todayKey = dateKey(now);
   $("todayLabel").textContent = now.toLocaleDateString(undefined, { weekday:'long', month:'long', day:'numeric' });
@@ -2245,7 +2269,6 @@ async function init(){
   $("overloadIncreaseBtn").addEventListener('click', acceptOverload);
   $("overloadModal").addEventListener('click', (e)=>{ if(e.target.id === 'overloadModal') closeOverloadModal(); });
 
-  $("profileBtn").addEventListener('click', openProfileModal);
   $("profileBtn").addEventListener('click', openProfileModal);
   $("profileModalClose").addEventListener('click', closeProfileModal);
   $("profileModal").addEventListener('click', (e)=>{ if(e.target.id === 'profileModal') closeProfileModal(); });

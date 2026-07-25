@@ -1,6 +1,6 @@
 {
-  "name": "Workouts",
-  "short_name": "Workouts",
+  "name": "PumpPal",
+  "short_name": "PumpPal",
   "start_url": ".",
   "display": "standalone",
   "background_color": "#15140F",
