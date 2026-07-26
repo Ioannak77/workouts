@@ -32,6 +32,13 @@ let profileView = 'hub';
 let userUnits = 'kg';
 let userRestSeconds = 30;
 let userTimerAlert = 'sound';
+let workoutSessionExerciseList = [];
+let loggingScreenExercise = null;
+let loggingScreenSetIndex = 1;
+let loggingScreenReps = 12;
+let loggingScreenWeight = 0;
+let selectedMood = null;
+let wssTimerInterval = null;
 
 /* ---------- data loaded from data/exercises.json ---------- */
 let EQUIPMENT_OPTIONS = [];
@@ -299,7 +306,7 @@ async function saveExerciseName(name){
   await loadExerciseNames();
 }
 
-function defaultSession(){ return { plan: [], checklist: [], sets: [], startedAt: null, finishedAt: null, newPRs: [], completed: [] }; }
+function defaultSession(){ return { plan: [], checklist: [], sets: [], startedAt: null, finishedAt: null, newPRs: [], completed: [], mood: null }; }
 async function getSession(key){
   try{
     const res = await window.storage.get(`session:${key}`);
@@ -879,9 +886,7 @@ async function renderHomeWorkoutCard(){
       <div class="hwc-progress-track"><div class="hwc-progress-fill" style="width:${pct}%"></div></div>
       <button type="button" class="hwc-btn" id="hwcContinueBtn">Continue workout ›</button>
     `;
-    $("hwcContinueBtn").addEventListener('click', ()=>{
-      $("planSection").scrollIntoView({ behavior:'smooth', block:'start' });
-    });
+    $("hwcContinueBtn").addEventListener('click', openWorkoutSession);
   } else {
     card.className = 'home-workout-card idle';
     card.innerHTML = `
@@ -889,10 +894,154 @@ async function renderHomeWorkoutCard(){
       <div class="hwc-idle-sub">Start a workout or create one to get moving.</div>
       <button type="button" class="hwc-btn" id="hwcStartBtn">Start workout</button>
     `;
-    $("hwcStartBtn").addEventListener('click', ()=>{
-      $("planGrid").scrollIntoView({ behavior:'smooth', block:'start' });
-    });
+    $("hwcStartBtn").addEventListener('click', openWorkoutSession);
   }
+}
+
+/* ---------- workout session (full-screen flow) ---------- */
+async function buildFlattenedExerciseList(session){
+  const list = [];
+  for(const key of session.plan){
+    const def = await getPlanDef(key);
+    if(def && def.type === 'strength'){
+      const exercises = await getWorkoutTemplate(key);
+      exercises.forEach(ex=> list.push({ ...ex, planKey:key }));
+    }
+  }
+  return list;
+}
+
+function startWssTimer(startedAt){
+  clearInterval(wssTimerInterval);
+  const tick = ()=>{ const el = $("wssTimerValue"); if(el) el.textContent = formatDuration(Date.now()-startedAt); };
+  tick();
+  wssTimerInterval = setInterval(tick, 1000);
+}
+function stopWssTimer(){ clearInterval(wssTimerInterval); wssTimerInterval = null; }
+
+async function openWorkoutSession(){
+  let session = await getSession(todayKey);
+  if(!session.startedAt){
+    await updateSession(todayKey, (s)=>{ s.startedAt = Date.now(); s.finishedAt = null; });
+    session = await getSession(todayKey);
+  }
+  workoutSessionExerciseList = await buildFlattenedExerciseList(session);
+  if(!workoutSessionExerciseList.length){
+    showToast("Add exercises to this workout first");
+    document.querySelectorAll('.tab-btn').forEach(b=> b.classList.remove('active'));
+    $("tabWorkoutsBtn").classList.add('active');
+    document.querySelectorAll('.app-page').forEach(p=> p.classList.remove('active'));
+    $("workoutsPage").classList.add('active');
+    return;
+  }
+  $("workoutSessionScreen").classList.add('open');
+  startWssTimer(session.startedAt || Date.now());
+  await renderWorkoutSessionOverview();
+}
+function closeWorkoutSession(){
+  $("workoutSessionScreen").classList.remove('open');
+  stopWssTimer();
+  renderAll();
+}
+
+async function renderWorkoutSessionOverview(){
+  const session = await getSession(todayKey);
+  const completed = session.completed || [];
+  const remaining = workoutSessionExerciseList.filter(ex=>!completed.includes(ex.name));
+  const total = workoutSessionExerciseList.length;
+  const doneCount = total - remaining.length;
+
+  const progress = await getActiveWorkoutProgress(session);
+  $("wssTitle").textContent = progress ? progress.label : 'Workout';
+  $("wssProgressText").textContent = `${Math.min(doneCount+1,total)} / ${total} exercises`;
+  $("wssProgressFill").style.width = `${total ? Math.round((doneCount/total)*100) : 0}%`;
+
+  if(!remaining.length){
+    closeWorkoutSession();
+    await handleFinishWorkout();
+    return;
+  }
+
+  const current = remaining[0];
+  const next = remaining[1] || null;
+  const data = findExerciseData(current.name);
+  const muscleLabel = data && data.muscle ? muscleLabelFor(data.muscle) : '';
+  const restSecs = getExerciseRestSeconds(current.name);
+
+  $("wssCurrentCard").innerHTML = `
+    <div class="wss-label">Current exercise</div>
+    <div class="wss-ex-name">${escapeHTML(current.name)}</div>
+    <div class="wss-ex-meta">${escapeHTML(current.target)} · Rest ${formatRestSeconds(restSecs)}</div>
+    ${muscleLabel ? `<div class="wss-muscle-tag">${escapeHTML(muscleLabel)}</div>` : ``}
+  `;
+
+  const upNextCard = $("wssUpNextCard");
+  if(next){
+    upNextCard.style.display = 'flex';
+    upNextCard.querySelector('.wss-upnext-name').textContent = next.name;
+  } else {
+    upNextCard.style.display = 'none';
+  }
+
+  $("wssTipText").textContent = getDailyFocusTip();
+
+  $("wssLogSetBtn").onclick = ()=> openLoggingScreen(current);
+  $("wssSkipBtn").onclick = async ()=>{
+    await updateSession(todayKey, (s)=>{
+      s.completed = s.completed || [];
+      if(!s.completed.includes(current.name)) s.completed.push(current.name);
+    });
+    await renderWorkoutSessionOverview();
+  };
+}
+
+async function openLoggingScreen(ex){
+  loggingScreenExercise = ex;
+  const repGoal = parseRepGoal(ex.target) || 12;
+  const session = await getSession(todayKey);
+  const loggedCount = session.sets.filter(s=>s.exercise===ex.name).length;
+  loggingScreenSetIndex = loggedCount + 1;
+  loggingScreenReps = repGoal;
+  loggingScreenWeight = ex.weight != null ? toDisplayWeight(ex.weight) : 0;
+  $("loggingScreen").classList.add('open');
+  await renderLoggingScreen();
+}
+function closeLoggingScreen(){
+  $("loggingScreen").classList.remove('open');
+}
+
+async function renderLoggingScreen(){
+  const ex = loggingScreenExercise;
+  if(!ex) return;
+  const targetSetsNum = extractLeadingSets(ex.target) || 1;
+  const restSecs = getExerciseRestSeconds(ex.name);
+  $("loggingExerciseName").textContent = ex.name;
+  $("loggingSetLabel").textContent = `Set ${loggingScreenSetIndex} of ${targetSetsNum}`;
+  $("loggingRepsValue").textContent = loggingScreenReps;
+  $("loggingWeightValue").textContent = loggingScreenWeight;
+  $("loggingWeightUnit").textContent = unitLabel();
+  $("loggingRestValue").textContent = formatRestSeconds(restSecs);
+
+  const repChips = [8,10,12,15,20];
+  $("loggingRepsChips").innerHTML = repChips.map(r=>`<button type="button" class="logging-chip ${r===loggingScreenReps?'active':''}" data-rep="${r}">${r}</button>`).join('');
+  $("loggingRepsChips").querySelectorAll('.logging-chip').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{ loggingScreenReps = Number(btn.dataset.rep); await renderLoggingScreen(); });
+  });
+
+  const baseW = loggingScreenWeight || 20;
+  const step = userUnits==='lbs' ? 5 : 2.5;
+  const rawChips = [baseW-step*1.5, baseW-step, baseW-step*0.5, baseW, baseW+step*0.5].map(w=>Math.max(0, Math.round(w*100)/100));
+  const uniqueChips = [...new Set(rawChips)];
+  $("loggingWeightChips").innerHTML = uniqueChips.map(w=>`<button type="button" class="logging-chip ${w===loggingScreenWeight?'active':''}" data-w="${w}">${w}</button>`).join('');
+  $("loggingWeightChips").querySelectorAll('.logging-chip').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{ loggingScreenWeight = Number(btn.dataset.w); await renderLoggingScreen(); });
+  });
+
+  const session = await getSession(todayKey);
+  const logged = session.sets.filter(s=>s.exercise===ex.name);
+  $("loggingSetHistory").innerHTML = logged.map((s,i)=>`
+    <div class="logging-history-row"><span>Set ${i+1}</span><span>${s.reps} reps</span><span>${toDisplayWeight(s.weight)}${unitLabel()}</span></div>
+  `).join('');
 }
 
 function openProfileModal(){
@@ -900,6 +1049,7 @@ function openProfileModal(){
   $("profileModal").classList.add('open');
   renderProfileModal();
 }
+
 async function closeProfileModal(){
   $("profileModal").classList.remove('open');
   profileView = 'hub';
@@ -1345,21 +1495,33 @@ function startRest(seconds, label, alertMode){
   $("restLabel").textContent = label;
   $("restTime").textContent = formatRestTime(remaining);
   bar.classList.add('show');
+
+  const restScreen = $("restScreen");
+  if(restScreen){
+    $("restScreenLabel").textContent = label;
+    $("restScreenTime").textContent = formatRestTime(remaining);
+    restScreen.classList.add('open');
+  }
+
   restInterval = setInterval(()=>{
     remaining--;
     if(remaining <= 0){
       clearInterval(restInterval);
       bar.classList.remove('show');
+      if(restScreen) restScreen.classList.remove('open');
       showToast("Rest over — go!");
       fireTimerAlert(alertMode);
       return;
     }
     $("restTime").textContent = formatRestTime(remaining);
+    if(restScreen) $("restScreenTime").textContent = formatRestTime(remaining);
   }, 1000);
 }
 function skipRest(){
   clearInterval(restInterval);
   $("restBar").classList.remove('show');
+  const restScreen = $("restScreen");
+  if(restScreen) restScreen.classList.remove('open');
 }
 function extractLeadingSets(target){
   if(!target) return null;
@@ -2256,6 +2418,7 @@ async function handleFinishWorkout(){
   const totalVolume = volumeOf(session.sets);
   const prs = session.newPRs || [];
 
+  selectedMood = null;
   $("finishModalBody").innerHTML = `
     <div class="finish-stat-grid">
       <div class="finish-stat"><div class="finish-stat-num">${formatDuration(duration)}</div><div class="finish-stat-lbl">Duration</div></div>
@@ -2266,11 +2429,26 @@ async function handleFinishWorkout(){
     ${prs.length
       ? `<div class="finish-pr-title">🏆 New personal records</div>${prs.map(p=>`<div class="finish-pr-item">${escapeHTML(p.exercise)}<br>${escapeHTML(p.detail)}</div>`).join("")}`
       : `<div class="finish-pr-title" style="color:var(--text-dim);">No new PRs this time — still solid work.</div>`}
+    <div class="mood-label">How was your workout?</div>
+    <div class="mood-row" id="moodRow">
+      <button type="button" class="mood-btn" data-mood="1">😞</button>
+      <button type="button" class="mood-btn" data-mood="2">🙁</button>
+      <button type="button" class="mood-btn" data-mood="3">😐</button>
+      <button type="button" class="mood-btn" data-mood="4">🙂</button>
+      <button type="button" class="mood-btn" data-mood="5">😄</button>
+    </div>
   `;
+  $("moodRow").querySelectorAll('.mood-btn').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      selectedMood = Number(btn.dataset.mood);
+      $("moodRow").querySelectorAll('.mood-btn').forEach(b=> b.classList.remove('active'));
+      btn.classList.add('active');
+    });
+  });
   $("finishModal").classList.add('open');
 }
 async function saveFinishedWorkout(){
-  await updateSession(todayKey, (s)=>{ s.finishedAt = Date.now(); });
+  await updateSession(todayKey, (s)=>{ s.finishedAt = Date.now(); s.mood = selectedMood; });
   $("finishModal").classList.remove('open');
   await renderAll();
   showToast("Workout saved 💪");
@@ -2367,18 +2545,75 @@ async function init(){
   $("overloadIncreaseBtn").addEventListener('click', acceptOverload);
   $("overloadModal").addEventListener('click', (e)=>{ if(e.target.id === 'overloadModal') closeOverloadModal(); });
 
-  $("avatarBtn").addEventListener('click', openProfileModal);
+  $("avatarBtn").addEventListener('click', ()=>{
+    $("profileModal").classList.remove('tab-page');
+    openProfileModal();
+  });
   $("bellBtn").addEventListener('click', ()=> showToast("No new notifications yet"));
 
-  $("qaWorkoutsBtn").addEventListener('click', ()=> $("planGrid").scrollIntoView({ behavior:'smooth', block:'start' }));
+  $("wssBackBtn").addEventListener('click', closeWorkoutSession);
+
+  $("loggingBackBtn").addEventListener('click', async ()=>{
+    closeLoggingScreen();
+    await renderWorkoutSessionOverview();
+  });
+  $("loggingGuideBtn").addEventListener('click', ()=>{
+    if(!loggingScreenExercise) return;
+    const found = findExerciseImage(loggingScreenExercise.name);
+    const folder = found ? (IMAGE_FOLDERS[found.libKey] || found.libKey) : '';
+    const src = found ? `${EXERCISE_IMAGE_BASE}${folder}/${found.img}` : '';
+    openExerciseImageModal(src, loggingScreenExercise.name);
+  });
+  $("loggingRepsMinus").addEventListener('click', async ()=>{ loggingScreenReps = Math.max(1, loggingScreenReps-1); await renderLoggingScreen(); });
+  $("loggingRepsPlus").addEventListener('click', async ()=>{ loggingScreenReps++; await renderLoggingScreen(); });
+  $("loggingWeightMinus").addEventListener('click', async ()=>{
+    const step = userUnits==='lbs' ? 5 : 2.5;
+    loggingScreenWeight = Math.max(0, Math.round((loggingScreenWeight-step)*100)/100);
+    await renderLoggingScreen();
+  });
+  $("loggingWeightPlus").addEventListener('click', async ()=>{
+    const step = userUnits==='lbs' ? 5 : 2.5;
+    loggingScreenWeight = Math.round((loggingScreenWeight+step)*100)/100;
+    await renderLoggingScreen();
+  });
+  $("loggingLogSetBtn").addEventListener('click', async ()=>{
+    const ex = loggingScreenExercise;
+    if(!ex) return;
+    const targetSetsNum = extractLeadingSets(ex.target);
+    await quickLog(ex.name, loggingScreenWeight, loggingScreenReps, targetSetsNum);
+    const session = await getSession(todayKey);
+    const loggedCount = session.sets.filter(s=>s.exercise===ex.name).length;
+    if(targetSetsNum && loggedCount >= targetSetsNum){
+      await updateSession(todayKey, (s)=>{
+        s.completed = s.completed || [];
+        if(!s.completed.includes(ex.name)) s.completed.push(ex.name);
+      });
+      await checkProgressiveOverload(ex.name);
+      closeLoggingScreen();
+      await renderWorkoutSessionOverview();
+    } else {
+      loggingScreenSetIndex++;
+      await renderLoggingScreen();
+    }
+  });
+
+  $("restScreenSkipX").addEventListener('click', skipRest);
+  $("restScreenSkipBtn").addEventListener('click', skipRest);
+
+  $("qaWorkoutsBtn").addEventListener('click', ()=>{
+    setActiveTab('tabWorkoutsBtn');
+    showAppPage('workoutsPage');
+  });
   $("qaLibraryBtn").addEventListener('click', ()=>{
     showToast("Exercise Library is coming soon");
-    $("planGrid").scrollIntoView({ behavior:'smooth', block:'start' });
+    setActiveTab('tabWorkoutsBtn');
+    showAppPage('workoutsPage');
   });
   $("qaNewWorkoutBtn").addEventListener('click', ()=>{
+    setActiveTab('tabWorkoutsBtn');
+    showAppPage('workoutsPage');
     $("newWorkoutForm").style.display = 'flex';
     $("newWorkoutName").focus();
-    $("newWorkoutForm").scrollIntoView({ behavior:'smooth', block:'center' });
   });
 
   function setActiveTab(id){
@@ -2386,26 +2621,49 @@ async function init(){
     const btn = $(id);
     if(btn) btn.classList.add('active');
   }
+  function showAppPage(pageId){
+    document.querySelectorAll('.app-page').forEach(p=> p.classList.remove('active'));
+    const target = $(pageId);
+    if(target) target.classList.add('active');
+    window.scrollTo({ top:0, behavior:'auto' });
+  }
   $("tabHomeBtn").addEventListener('click', ()=>{
     setActiveTab('tabHomeBtn');
-    window.scrollTo({ top:0, behavior:'smooth' });
+    $("profileModal").classList.remove('open');
+    $("profileModal").classList.remove('tab-page');
+    showAppPage('homePage');
   });
   $("tabWorkoutsBtn").addEventListener('click', ()=>{
     setActiveTab('tabWorkoutsBtn');
-    $("planGrid").scrollIntoView({ behavior:'smooth', block:'start' });
+    $("profileModal").classList.remove('open');
+    $("profileModal").classList.remove('tab-page');
+    showAppPage('workoutsPage');
   });
-  $("tabProgressBtn").addEventListener('click', ()=>{
+  $("tabProgressBtn").addEventListener('click', async ()=>{
     setActiveTab('tabProgressBtn');
-    profileView = 'progress';
-    $("profileModal").classList.add('open');
-    renderProfileModal();
+    $("profileModal").classList.remove('open');
+    $("profileModal").classList.remove('tab-page');
+    showAppPage('progressPage');
+    await renderProgression();
   });
   $("tabYouBtn").addEventListener('click', ()=>{
     setActiveTab('tabYouBtn');
-    openProfileModal();
+    document.querySelectorAll('.app-page').forEach(p=> p.classList.remove('active'));
+    profileView = 'hub';
+    $("profileModal").classList.add('tab-page');
+    $("profileModal").classList.add('open');
+    renderProfileModal();
   });
-  $("profileModalClose").addEventListener('click', closeProfileModal);
-  $("profileModal").addEventListener('click', (e)=>{ if(e.target.id === 'profileModal') closeProfileModal(); });
+  $("profileModalClose").addEventListener('click', ()=>{
+    closeProfileModal();
+    setActiveTab('tabHomeBtn');
+    showAppPage('homePage');
+  });
+  $("profileModal").addEventListener('click', (e)=>{
+    if(e.target.id === 'profileModal' && !$("profileModal").classList.contains('tab-page')){
+      closeProfileModal();
+    }
+  });
 
   $("finishWorkoutBtn").addEventListener('click', handleFinishWorkout);
   $("finishModalClose").addEventListener('click', ()=> $("finishModal").classList.remove('open'));

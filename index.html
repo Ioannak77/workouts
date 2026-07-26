@@ -130,51 +130,133 @@
   </div>
 </div>
 
-<header>
-  <div class="eyebrow" id="todayLabel" style="display:none;">—</div>
-  <div class="home-topbar">
-    <button class="avatar-btn" id="avatarBtn" aria-label="Settings">
-      <img src="icons/mascot/headshot.png" alt="" class="avatar-img">
-    </button>
-    <button class="bell-btn" id="bellBtn" aria-label="Notifications">🔔</button>
+<div class="fullscreen-overlay" id="workoutSessionScreen">
+  <div class="wss-topbar">
+    <button type="button" class="wss-back-btn" id="wssBackBtn" aria-label="Close">✕</button>
+    <div class="wss-title" id="wssTitle">Workout</div>
+    <div style="width:34px;"></div>
   </div>
-  <div class="home-greeting-row">
-    <div class="home-greeting-text">
-      <div class="greeting-sub" id="greetingSub">Good evening,</div>
-      <div class="greeting-name" id="greetingName">Athlete</div>
-      <div class="greeting-tagline">Let's get that pump! ♥</div>
+  <div class="wss-progress-text" id="wssProgressText">1 / 1 exercises</div>
+  <div class="wss-progress-track"><div class="wss-progress-fill" id="wssProgressFill" style="width:0%"></div></div>
+
+  <div class="wss-current-card" id="wssCurrentCard"></div>
+
+  <div class="wss-upnext-card" id="wssUpNextCard">
+    <div class="wss-upnext-thumb"></div>
+    <div>
+      <div class="wss-upnext-label">Up next</div>
+      <div class="wss-upnext-name"></div>
     </div>
-    <img class="header-logo" src="icons/mascot/flexing.png" alt="PumpPal mascot">
-  </div>
-</header>
-
-<main>
-  <div id="homeWorkoutCard" class="home-workout-card"></div>
-  <div class="workout-bar" id="workoutBar">
-    <span class="workout-timer-text">⏱ <span id="workoutTimerText">0:00</span></span>
-    <button class="finish-workout-btn" id="finishWorkoutBtn">Finish Workout</button>
   </div>
 
-  <div class="section-title"><span>Today's stats</span><a href="javascript:void(0)" class="view-all-link" id="viewAllStatsLink">View all</a></div>
-  <div class="stats">
-    <div class="stat"><div class="stat-icon">🏋️</div><div class="num" id="statSets">0</div><div class="lbl">Sets today</div></div>
-    <div class="stat"><div class="stat-icon">📊</div><div class="num" id="statVolume">0</div><div class="lbl" id="statVolumeLabel">Volume (kg)</div></div>
-    <div class="stat"><div class="stat-icon">🔥</div><div class="num" id="statStreak">0</div><div class="lbl">Day streak</div></div>
+  <div class="wss-timer-card">
+    <div class="wss-timer-label">Workout time</div>
+    <div class="wss-timer-value" id="wssTimerValue">0:00</div>
   </div>
 
-  <div id="focusTipCard" class="focus-tip-card"></div>
-
-  <div class="section-title">Quick access</div>
-  <div class="quick-access-grid">
-    <button type="button" class="quick-access-tile" id="qaWorkoutsBtn"><span class="qa-icon">🏋️</span>Workouts</button>
-    <button type="button" class="quick-access-tile" id="qaLibraryBtn"><span class="qa-icon">📚</span>Exercise library</button>
-    <button type="button" class="quick-access-tile qa-dashed" id="qaNewWorkoutBtn"><span class="qa-icon">＋</span>New workout</button>
+  <div class="wss-tip-row">
+    <div class="wss-tip-thumb"></div>
+    <div class="wss-tip-text" id="wssTipText"></div>
   </div>
 
-  <div class="section-title">Progression</div>
-  <div id="progCard" class="prog-card"></div>
+  <div class="wss-actions">
+    <button type="button" class="hwc-btn" id="wssLogSetBtn" style="flex:1;">Log set</button>
+    <button type="button" class="wss-skip-btn" id="wssSkipBtn">Skip</button>
+  </div>
+</div>
 
-  <div class="section-title">Workouts</div>
+<div class="fullscreen-overlay" id="loggingScreen">
+  <div class="wss-topbar">
+    <button type="button" class="wss-back-btn" id="loggingBackBtn" aria-label="Back">←</button>
+    <div class="wss-title" id="loggingExerciseName">Exercise</div>
+    <button type="button" class="wss-back-btn" id="loggingGuideBtn" aria-label="View exercise guide">📖</button>
+  </div>
+  <div class="logging-set-label" id="loggingSetLabel">Set 1 of 3</div>
+
+  <div class="logging-field-label">Reps</div>
+  <div class="logging-stepper-row">
+    <button type="button" class="logging-stepper-btn" id="loggingRepsMinus">−</button>
+    <div class="logging-stepper-value" id="loggingRepsValue">12</div>
+    <button type="button" class="logging-stepper-btn" id="loggingRepsPlus">+</button>
+  </div>
+  <div class="logging-chip-row" id="loggingRepsChips"></div>
+
+  <div class="logging-field-label">Weight (<span id="loggingWeightUnit">kg</span>)</div>
+  <div class="logging-stepper-row">
+    <button type="button" class="logging-stepper-btn" id="loggingWeightMinus">−</button>
+    <div class="logging-stepper-value" id="loggingWeightValue">20</div>
+    <button type="button" class="logging-stepper-btn" id="loggingWeightPlus">+</button>
+  </div>
+  <div class="logging-chip-row" id="loggingWeightChips"></div>
+
+  <div class="logging-rest-row">Rest <span id="loggingRestValue">45s</span></div>
+
+  <button type="button" class="hwc-btn" id="loggingLogSetBtn" style="margin-bottom:14px;">Log set</button>
+
+  <div id="loggingSetHistory"></div>
+</div>
+
+<div class="fullscreen-overlay" id="restScreen">
+  <div class="wss-topbar">
+    <button type="button" class="wss-back-btn" id="restScreenSkipX" aria-label="Skip rest">✕</button>
+    <div style="width:34px;"></div>
+    <div style="width:34px;"></div>
+  </div>
+  <div class="rest-screen-body">
+    <div class="rest-screen-label">Rest time</div>
+    <div class="rest-screen-time" id="restScreenTime">0:30</div>
+    <div class="rest-screen-ring"><div class="rest-screen-ring-inner"></div></div>
+    <div class="rest-screen-message" id="restScreenLabel">Great set! Take your time, recover, and let's go again.</div>
+    <button type="button" class="wss-skip-btn" id="restScreenSkipBtn" style="width:100%;">Skip rest</button>
+  </div>
+</div>
+
+<div id="homePage" class="app-page active">
+  <header>
+    <div class="eyebrow" id="todayLabel" style="display:none;">—</div>
+    <div class="home-topbar">
+      <button class="avatar-btn" id="avatarBtn" aria-label="Settings">
+        <img src="icons/mascot/headshot.png" alt="" class="avatar-img">
+      </button>
+      <button class="bell-btn" id="bellBtn" aria-label="Notifications">🔔</button>
+    </div>
+    <div class="home-greeting-row">
+      <div class="home-greeting-text">
+        <div class="greeting-sub" id="greetingSub">Good evening,</div>
+        <div class="greeting-name" id="greetingName">Athlete</div>
+        <div class="greeting-tagline">Let's get that pump! ♥</div>
+      </div>
+      <img class="header-logo" src="icons/mascot/flexing.png" alt="PumpPal mascot">
+    </div>
+  </header>
+
+  <main>
+    <div id="homeWorkoutCard" class="home-workout-card"></div>
+    <div class="workout-bar" id="workoutBar">
+      <span class="workout-timer-text">⏱ <span id="workoutTimerText">0:00</span></span>
+      <button class="finish-workout-btn" id="finishWorkoutBtn">Finish Workout</button>
+    </div>
+
+    <div class="section-title"><span>Today's stats</span><a href="javascript:void(0)" class="view-all-link" id="viewAllStatsLink">View all</a></div>
+    <div class="stats">
+      <div class="stat"><div class="stat-icon">🏋️</div><div class="num" id="statSets">0</div><div class="lbl">Sets today</div></div>
+      <div class="stat"><div class="stat-icon">📊</div><div class="num" id="statVolume">0</div><div class="lbl" id="statVolumeLabel">Volume (kg)</div></div>
+      <div class="stat"><div class="stat-icon">🔥</div><div class="num" id="statStreak">0</div><div class="lbl">Day streak</div></div>
+    </div>
+
+    <div id="focusTipCard" class="focus-tip-card"></div>
+
+    <div class="section-title">Quick access</div>
+    <div class="quick-access-grid">
+      <button type="button" class="quick-access-tile" id="qaWorkoutsBtn"><span class="qa-icon">🏋️</span>Workouts</button>
+      <button type="button" class="quick-access-tile" id="qaLibraryBtn"><span class="qa-icon">📚</span>Exercise library</button>
+      <button type="button" class="quick-access-tile qa-dashed" id="qaNewWorkoutBtn"><span class="qa-icon">＋</span>New workout</button>
+    </div>
+  </main>
+</div>
+
+<div id="workoutsPage" class="app-page">
+  <div class="page-heading">Workouts</div>
   <button class="repeat-btn" id="repeatWorkoutBtn" style="display:none;">↻ Repeat previous workout</button>
   <div class="plan-grid" id="planGrid"></div>
   <div class="new-workout-form" id="newWorkoutForm">
@@ -186,7 +268,13 @@
 
   <div class="section-title" id="extrasTitle" style="margin-top:22px; display:none;">Today</div>
   <div id="todayList"></div>
-</main>
+</div>
+
+<div id="progressPage" class="app-page">
+  <div class="page-heading">Progress</div>
+  <div class="section-title">Progression</div>
+  <div id="progCard" class="prog-card"></div>
+</div>
 
 <nav class="bottom-tab-bar" id="bottomTabBar">
   <button type="button" class="tab-btn active" id="tabHomeBtn"><span class="tab-icon">🏠</span><span class="tab-label">Home</span></button>
