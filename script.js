@@ -794,6 +794,107 @@ function closeExerciseImageModal(){
   $("exerciseImageModal").classList.remove('open');
 }
 
+/* ---------- home screen ---------- */
+function getGreetingSub(){
+  const h = new Date().getHours();
+  if(h < 12) return 'Good morning,';
+  if(h < 18) return 'Good afternoon,';
+  return 'Good evening,';
+}
+async function renderGreeting(){
+  const profile = await getProfile();
+  const subEl = $("greetingSub");
+  const nameEl = $("greetingName");
+  if(subEl) subEl.textContent = getGreetingSub();
+  if(nameEl) nameEl.textContent = displayName(profile);
+}
+
+const FOCUS_TIPS = [
+  "Form over ego. Every rep counts.",
+  "Consistency beats intensity. Show up today.",
+  "Rest is part of the plan, not a break from it.",
+  "Progress isn't always visible on the scale.",
+  "You don't have to be extreme, just consistent.",
+  "Small steps today, big change tomorrow.",
+  "Discipline today, results tomorrow."
+];
+function getDailyFocusTip(){
+  const dayOfYear = Math.floor((Date.now() - new Date(new Date().getFullYear(),0,0)) / 86400000);
+  return FOCUS_TIPS[dayOfYear % FOCUS_TIPS.length];
+}
+function renderFocusTip(){
+  const el = $("focusTipCard");
+  if(!el) return;
+  el.innerHTML = `
+    <div class="ftc-thumb"></div>
+    <div class="ftc-body">
+      <div class="ftc-label">Focus tip</div>
+      <div class="ftc-text">${escapeHTML(getDailyFocusTip())}</div>
+    </div>
+  `;
+}
+
+async function getActiveWorkoutProgress(session){
+  const strengthPlans = [];
+  for(const key of session.plan){
+    const def = await getPlanDef(key);
+    if(def && def.type === 'strength') strengthPlans.push({ key, def });
+  }
+  if(!strengthPlans.length) return null;
+  let total = 0, completedCount = 0;
+  for(const { key } of strengthPlans){
+    const exercises = await getWorkoutTemplate(key);
+    exercises.forEach(ex=>{
+      total++;
+      if((session.completed || []).includes(ex.name)) completedCount++;
+    });
+  }
+  const label = strengthPlans.length === 1 ? strengthPlans[0].def.label : 'Workout';
+  return { total, completedCount, label };
+}
+
+async function renderHomeWorkoutCard(){
+  const session = await getSession(todayKey);
+  const card = $("homeWorkoutCard");
+  if(!card) return;
+
+  if(session.startedAt && !session.finishedAt){
+    const progress = await getActiveWorkoutProgress(session);
+    const total = progress ? progress.total : 0;
+    const done = progress ? progress.completedCount : 0;
+    const label = progress ? progress.label : 'Workout';
+    const pct = total ? Math.round((done/total)*100) : 0;
+    const elapsed = formatDuration(Date.now() - session.startedAt);
+    card.className = 'home-workout-card active';
+    card.innerHTML = `
+      <div class="hwc-row">
+        <div>
+          <div class="hwc-label">Continue workout</div>
+          <div class="hwc-title">${escapeHTML(label)}</div>
+          <div class="hwc-sub">Exercise ${total ? Math.min(done+1, total) : 0} of ${total}</div>
+          <div class="hwc-elapsed">${elapsed} elapsed</div>
+        </div>
+        <div class="hwc-thumb"></div>
+      </div>
+      <div class="hwc-progress-track"><div class="hwc-progress-fill" style="width:${pct}%"></div></div>
+      <button type="button" class="hwc-btn" id="hwcContinueBtn">Continue workout ›</button>
+    `;
+    $("hwcContinueBtn").addEventListener('click', ()=>{
+      $("planSection").scrollIntoView({ behavior:'smooth', block:'start' });
+    });
+  } else {
+    card.className = 'home-workout-card idle';
+    card.innerHTML = `
+      <div class="hwc-idle-title">No workout in progress</div>
+      <div class="hwc-idle-sub">Start a workout or create one to get moving.</div>
+      <button type="button" class="hwc-btn" id="hwcStartBtn">Start workout</button>
+    `;
+    $("hwcStartBtn").addEventListener('click', ()=>{
+      $("planGrid").scrollIntoView({ behavior:'smooth', block:'start' });
+    });
+  }
+}
+
 function openProfileModal(){
   profileView = 'hub';
   $("profileModal").classList.add('open');
@@ -805,6 +906,7 @@ async function closeProfileModal(){
   await refreshUserSettingsCache();
   await renderPlanSection();
   await renderStats();
+  await renderGreeting();
 }
 
 /* ---------- monthly recap ---------- */
@@ -2207,6 +2309,7 @@ async function renderAll(){
   await updateStreak();
   await renderRepeatButton();
   await updateWorkoutBar();
+  await renderHomeWorkoutCard();
 }
 
 let splashProgressInterval = null;
@@ -2242,6 +2345,8 @@ async function init(){
 
   await loadExerciseData();
   await loadExerciseNames();
+  await renderGreeting();
+  renderFocusTip();
   await renderProgression();
   await renderAll();
 
@@ -2262,7 +2367,43 @@ async function init(){
   $("overloadIncreaseBtn").addEventListener('click', acceptOverload);
   $("overloadModal").addEventListener('click', (e)=>{ if(e.target.id === 'overloadModal') closeOverloadModal(); });
 
-  $("profileBtn").addEventListener('click', openProfileModal);
+  $("avatarBtn").addEventListener('click', openProfileModal);
+  $("bellBtn").addEventListener('click', ()=> showToast("No new notifications yet"));
+
+  $("qaWorkoutsBtn").addEventListener('click', ()=> $("planGrid").scrollIntoView({ behavior:'smooth', block:'start' }));
+  $("qaLibraryBtn").addEventListener('click', ()=>{
+    showToast("Exercise Library is coming soon");
+    $("planGrid").scrollIntoView({ behavior:'smooth', block:'start' });
+  });
+  $("qaNewWorkoutBtn").addEventListener('click', ()=>{
+    $("newWorkoutForm").style.display = 'flex';
+    $("newWorkoutName").focus();
+    $("newWorkoutForm").scrollIntoView({ behavior:'smooth', block:'center' });
+  });
+
+  function setActiveTab(id){
+    document.querySelectorAll('.tab-btn').forEach(b=> b.classList.remove('active'));
+    const btn = $(id);
+    if(btn) btn.classList.add('active');
+  }
+  $("tabHomeBtn").addEventListener('click', ()=>{
+    setActiveTab('tabHomeBtn');
+    window.scrollTo({ top:0, behavior:'smooth' });
+  });
+  $("tabWorkoutsBtn").addEventListener('click', ()=>{
+    setActiveTab('tabWorkoutsBtn');
+    $("planGrid").scrollIntoView({ behavior:'smooth', block:'start' });
+  });
+  $("tabProgressBtn").addEventListener('click', ()=>{
+    setActiveTab('tabProgressBtn');
+    profileView = 'progress';
+    $("profileModal").classList.add('open');
+    renderProfileModal();
+  });
+  $("tabYouBtn").addEventListener('click', ()=>{
+    setActiveTab('tabYouBtn');
+    openProfileModal();
+  });
   $("profileModalClose").addEventListener('click', closeProfileModal);
   $("profileModal").addEventListener('click', (e)=>{ if(e.target.id === 'profileModal') closeProfileModal(); });
 

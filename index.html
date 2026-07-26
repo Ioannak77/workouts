@@ -132,25 +132,45 @@
 
 <header>
   <div class="eyebrow" id="todayLabel" style="display:none;">—</div>
-  <div class="header-title-row">
-    <button class="profile-btn" id="profileBtn" aria-label="Settings">
-      <svg viewBox="0 0 24 24" fill="none"><circle cx="12" cy="8" r="4" stroke="var(--moss)" stroke-width="2"/><path d="M4 20c0-4.4 3.6-7 8-7s8 2.6 8 7" stroke="var(--moss)" stroke-width="2" stroke-linecap="round"/></svg>
+  <div class="home-topbar">
+    <button class="avatar-btn" id="avatarBtn" aria-label="Settings">
+      <img src="icons/mascot/headshot.png" alt="" class="avatar-img">
     </button>
-    <h1>PUMP<span>PAL</span></h1>
-    <img class="header-logo" src="icons/mascot/headshot.png" alt="PumpPal mascot">
+    <button class="bell-btn" id="bellBtn" aria-label="Notifications">🔔</button>
   </div>
-  <div class="stats">
-    <div class="stat"><div class="num" id="statSets">0</div><div class="lbl">Sets today</div></div>
-    <div class="stat"><div class="num" id="statVolume">0</div><div class="lbl" id="statVolumeLabel">Volume (kg)</div></div>
-    <div class="stat"><div class="num" id="statStreak">0</div><div class="lbl">Day streak</div></div>
-  </div>
-  <div class="workout-bar" id="workoutBar">
-    <span class="workout-timer-text">⏱ <span id="workoutTimerText">0:00</span></span>
-    <button class="finish-workout-btn" id="finishWorkoutBtn">Finish Workout</button>
+  <div class="home-greeting-row">
+    <div class="home-greeting-text">
+      <div class="greeting-sub" id="greetingSub">Good evening,</div>
+      <div class="greeting-name" id="greetingName">Athlete</div>
+      <div class="greeting-tagline">Let's get that pump! ♥</div>
+    </div>
+    <img class="header-logo" src="icons/mascot/flexing.png" alt="PumpPal mascot">
   </div>
 </header>
 
 <main>
+  <div id="homeWorkoutCard" class="home-workout-card"></div>
+  <div class="workout-bar" id="workoutBar">
+    <span class="workout-timer-text">⏱ <span id="workoutTimerText">0:00</span></span>
+    <button class="finish-workout-btn" id="finishWorkoutBtn">Finish Workout</button>
+  </div>
+
+  <div class="section-title"><span>Today's stats</span><a href="javascript:void(0)" class="view-all-link" id="viewAllStatsLink">View all</a></div>
+  <div class="stats">
+    <div class="stat"><div class="stat-icon">🏋️</div><div class="num" id="statSets">0</div><div class="lbl">Sets today</div></div>
+    <div class="stat"><div class="stat-icon">📊</div><div class="num" id="statVolume">0</div><div class="lbl" id="statVolumeLabel">Volume (kg)</div></div>
+    <div class="stat"><div class="stat-icon">🔥</div><div class="num" id="statStreak">0</div><div class="lbl">Day streak</div></div>
+  </div>
+
+  <div id="focusTipCard" class="focus-tip-card"></div>
+
+  <div class="section-title">Quick access</div>
+  <div class="quick-access-grid">
+    <button type="button" class="quick-access-tile" id="qaWorkoutsBtn"><span class="qa-icon">🏋️</span>Workouts</button>
+    <button type="button" class="quick-access-tile" id="qaLibraryBtn"><span class="qa-icon">📚</span>Exercise library</button>
+    <button type="button" class="quick-access-tile qa-dashed" id="qaNewWorkoutBtn"><span class="qa-icon">＋</span>New workout</button>
+  </div>
+
   <div class="section-title">Progression</div>
   <div id="progCard" class="prog-card"></div>
 
@@ -167,6 +187,13 @@
   <div class="section-title" id="extrasTitle" style="margin-top:22px; display:none;">Today</div>
   <div id="todayList"></div>
 </main>
+
+<nav class="bottom-tab-bar" id="bottomTabBar">
+  <button type="button" class="tab-btn active" id="tabHomeBtn"><span class="tab-icon">🏠</span><span class="tab-label">Home</span></button>
+  <button type="button" class="tab-btn" id="tabWorkoutsBtn"><span class="tab-icon">🏋️</span><span class="tab-label">Workouts</span></button>
+  <button type="button" class="tab-btn" id="tabProgressBtn"><span class="tab-icon">📈</span><span class="tab-label">Progress</span></button>
+  <button type="button" class="tab-btn" id="tabYouBtn"><span class="tab-icon">🙂</span><span class="tab-label">You</span></button>
+</nav>
 
 <datalist id="exerciseOptions"></datalist>
 
