@@ -781,6 +781,10 @@ function eimListHTML(title, items){
     <ul class="eim-list">${items.map(i=>`<li>${escapeHTML(i)}</li>`).join('')}</ul>
   `;
 }
+function eimListItems(items){
+  if(!items || !items.length) return `<div class="eim-empty">Not added yet.</div>`;
+  return `<ul class="eim-list">${items.map(i=>`<li>${escapeHTML(i)}</li>`).join('')}</ul>`;
+}
 function openExerciseImageModal(src, name){
   if(!src) return;
   $("exerciseImageModalImg").src = src;
@@ -788,12 +792,29 @@ function openExerciseImageModal(src, name){
   $("exerciseImageModalLabel").textContent = name;
 
   const data = findExerciseData(name);
+  const muscleLabel = data && data.muscle ? muscleLabelFor(data.muscle) : null;
   const body = $("exerciseImageModalBody");
   body.innerHTML = `
-    ${eimListHTML('Step-by-step', data && data.steps)}
-    ${eimListHTML('Common mistakes', data && data.mistakes)}
-    ${eimListHTML('Tips', data && data.tips)}
+    <div class="eim-tabs">
+      <button type="button" class="eim-tab active" data-tab="howto">How to</button>
+      <button type="button" class="eim-tab" data-tab="muscles">Muscles</button>
+      <button type="button" class="eim-tab" data-tab="mistakes">Mistakes</button>
+      <button type="button" class="eim-tab" data-tab="tips">Tips</button>
+    </div>
+    <div class="eim-panel" data-panel="howto">${eimListItems(data && data.steps)}</div>
+    <div class="eim-panel" data-panel="muscles" style="display:none;">${muscleLabel ? `<div class="eim-muscle-badge">${escapeHTML(muscleLabel)}</div>` : `<div class="eim-empty">Not tagged yet.</div>`}</div>
+    <div class="eim-panel" data-panel="mistakes" style="display:none;">${eimListItems(data && data.mistakes)}</div>
+    <div class="eim-panel" data-panel="tips" style="display:none;">${eimListItems(data && data.tips)}</div>
   `;
+  body.querySelectorAll('.eim-tab').forEach(tab=>{
+    tab.addEventListener('click', ()=>{
+      body.querySelectorAll('.eim-tab').forEach(t=> t.classList.remove('active'));
+      tab.classList.add('active');
+      body.querySelectorAll('.eim-panel').forEach(p=>{
+        p.style.display = (p.dataset.panel === tab.dataset.tab) ? 'block' : 'none';
+      });
+    });
+  });
 
   $("exerciseImageModal").classList.add('open');
 }
@@ -1092,10 +1113,11 @@ async function computeMonthlyRecap(year, monthIndex){
   const exerciseDayCounts = {};
   const muscleSetCounts = {};
   const prMap = {};
+  const activeDateKeys = [];
 
   for(const dk of monthDateKeys){
     const s = await getSession(dk);
-    if(s.sets.length > 0) workoutsCompleted++;
+    if(s.sets.length > 0){ workoutsCompleted++; activeDateKeys.push(dk); }
     if(s.startedAt && s.finishedAt && s.finishedAt > s.startedAt){
       totalDurationMs += (s.finishedAt - s.startedAt);
     }
@@ -1111,10 +1133,13 @@ async function computeMonthlyRecap(year, monthIndex){
     });
     (s.newPRs || []).forEach(ev=>{
       if(ev.type === 'weight' && ev.delta != null && ev.delta > 0){
-        if(!prMap[ev.exercise] || ev.delta > prMap[ev.exercise]) prMap[ev.exercise] = ev.delta;
+        if(!prMap[ev.exercise] || ev.delta > prMap[ev.exercise].delta) prMap[ev.exercise] = { delta: ev.delta, weight: ev.weight };
       }
     });
   }
+
+  activeDateKeys.sort();
+  const longestStreak = computeLongestStreakInMonth(activeDateKeys);
 
   let prevWorkouts = 0;
   let prevVolume = 0;
@@ -1141,9 +1166,22 @@ async function computeMonthlyRecap(year, monthIndex){
   const consistencyScore = Math.min(100, Math.round((workoutsCompleted / totalDays) * 100));
 
   const prs = Object.entries(prMap)
-    .map(([exercise, delta])=>({ exercise, delta }))
+    .map(([exercise, v])=>({ exercise, delta: v.delta, weight: v.weight }))
     .sort((a,b)=> b.delta - a.delta)
     .slice(0, 5);
+
+  let bestLift = null;
+  if(prs.length){
+    const top = prs[0];
+    let bestReps = 0;
+    for(const dk of monthDateKeys){
+      const s = await getSession(dk);
+      s.sets.forEach(set=>{
+        if(set.exercise === top.exercise && set.weight === top.weight) bestReps = Math.max(bestReps, set.reps);
+      });
+    }
+    bestLift = { exercise: top.exercise, weight: top.weight, reps: bestReps };
+  }
 
   const monthLabel = new Date(year, monthIndex, 1).toLocaleDateString(undefined, { month:'long', year:'numeric' });
 
@@ -1151,8 +1189,21 @@ async function computeMonthlyRecap(year, monthIndex){
     monthLabel, workoutsCompleted, workoutsDelta,
     totalDurationMs, totalVolume, volumeDeltaPct, avgPerWeek,
     prs, mostMuscle, leastMuscle, favoriteExercise,
-    totalSets, totalReps, consistencyScore
+    totalSets, totalReps, consistencyScore, bestLift, longestStreak
   };
+}
+
+function computeLongestStreakInMonth(sortedActiveDateKeys){
+  if(!sortedActiveDateKeys.length) return 0;
+  let longest = 1, current = 1;
+  for(let i=1; i<sortedActiveDateKeys.length; i++){
+    const prev = new Date(sortedActiveDateKeys[i-1]);
+    const cur = new Date(sortedActiveDateKeys[i]);
+    const diffDays = Math.round((cur-prev)/86400000);
+    if(diffDays === 1){ current++; longest = Math.max(longest, current); }
+    else if(diffDays > 1){ current = 1; }
+  }
+  return longest;
 }
 
 function recapStatRow(icon, label, value, sub){
@@ -1185,6 +1236,13 @@ function renderRecapContent(recap){
       `).join('')
     : `<div class="recap-empty">No new PRs this month — keep pushing!</div>`;
 
+  const bestLiftHTML = recap.bestLift
+    ? recapStatRow('🏆', 'Best lift', `${escapeHTML(recap.bestLift.exercise)}`, `${toDisplayWeight(recap.bestLift.weight)}${unitLabel()} × ${recap.bestLift.reps}`)
+    : '';
+  const streakHTML = recap.longestStreak > 0
+    ? recapStatRow('🔥', 'Longest streak', `${recap.longestStreak} day${recap.longestStreak===1?'':'s'}`, 'Keep it going!')
+    : '';
+
   return `
     <div class="recap-mascot">${MASCOT_IMG_HTML}</div>
     <div class="recap-month-title">${escapeHTML(recap.monthLabel)}</div>
@@ -1193,6 +1251,8 @@ function renderRecapContent(recap){
     ${recapStatRow('⏱', 'Total training time', formatDurationLong(recap.totalDurationMs))}
     ${recapStatRow('💪', 'Total volume lifted', `${Math.round(toDisplayWeight(recap.totalVolume)).toLocaleString()} ${unitLabel()}`, deltaVolumeHTML)}
     ${recapStatRow('📅', 'Average workouts/week', recap.avgPerWeek)}
+    ${bestLiftHTML}
+    ${streakHTML}
 
     <div class="recap-section-title">🏆 Personal records</div>
     <div class="recap-pr-list">${prHTML}</div>
@@ -1242,9 +1302,32 @@ async function checkForMonthlyRecap(){
   banner.style.display = 'flex';
 }
 
+let currentRecapYear = null;
+let currentRecapMonthIndex = null;
+
+function recapNavHTML(year, monthIndex){
+  return `
+    <div class="recap-nav">
+      <button type="button" class="recap-nav-btn" id="recapPrevBtn">‹</button>
+      <div class="recap-nav-month">${escapeHTML(new Date(year, monthIndex, 1).toLocaleDateString(undefined,{month:'long',year:'numeric'}))}</div>
+      <button type="button" class="recap-nav-btn" id="recapNextBtn">›</button>
+    </div>
+  `;
+}
+
 async function openMonthlyRecap(year, monthIndex){
+  currentRecapYear = year;
+  currentRecapMonthIndex = monthIndex;
   const recap = await computeMonthlyRecap(year, monthIndex);
-  $("recapModalBody").innerHTML = renderRecapContent(recap);
+  $("recapModalBody").innerHTML = recapNavHTML(year, monthIndex) + renderRecapContent(recap);
+  $("recapPrevBtn").addEventListener('click', ()=>{
+    const d = new Date(currentRecapYear, currentRecapMonthIndex-1, 1);
+    openMonthlyRecap(d.getFullYear(), d.getMonth());
+  });
+  $("recapNextBtn").addEventListener('click', ()=>{
+    const d = new Date(currentRecapYear, currentRecapMonthIndex+1, 1);
+    openMonthlyRecap(d.getFullYear(), d.getMonth());
+  });
   $("recapModal").classList.add('open');
 }
 
@@ -1659,6 +1742,214 @@ async function refreshCheckinViews(week){
   await renderProgression();
 }
 
+function getRollingWeekDateKeys(){
+  const keys = [];
+  const cursor = new Date();
+  for(let i=0;i<7;i++){
+    keys.push(dateKey(cursor));
+    cursor.setDate(cursor.getDate()-1);
+  }
+  return keys;
+}
+
+async function computeThisWeekStats(){
+  const dateKeys = getRollingWeekDateKeys();
+  let sets=0, volume=0, workouts=0;
+  for(const dk of dateKeys){
+    const s = await getSession(dk);
+    if(s.sets.length>0){ workouts++; sets+=s.sets.length; volume+=volumeOf(s.sets); }
+  }
+  return { sets, volume, workouts };
+}
+
+async function computeVolumeLast8Weeks(){
+  const weeks = [];
+  const now = new Date();
+  for(let w=7; w>=0; w--){
+    let vol = 0;
+    for(let d=0; d<7; d++){
+      const cursor = new Date(now);
+      cursor.setDate(cursor.getDate() - (w*7+d));
+      const s = await getSession(dateKey(cursor));
+      vol += volumeOf(s.sets);
+    }
+    weeks.push(Math.round(toDisplayWeight(vol)));
+  }
+  return weeks;
+}
+
+async function computeMuscleBreakdown(dateKeysToCheck){
+  const counts = {};
+  let total = 0;
+  for(const dk of dateKeysToCheck){
+    const s = await getSession(dk);
+    s.sets.forEach(set=>{
+      const d = findExerciseData(set.exercise);
+      if(d && d.muscle){ counts[d.muscle] = (counts[d.muscle]||0)+1; total++; }
+    });
+  }
+  return MUSCLE_GROUP_OPTIONS
+    .map(m=>({ key:m.key, label:m.label, count: counts[m.key]||0 }))
+    .filter(m=>m.count>0)
+    .sort((a,b)=> b.count-a.count)
+    .map(m=>({ ...m, pct: total ? Math.round((m.count/total)*100) : 0 }));
+}
+
+let volumeChartInstance = null;
+async function renderProgressOverviewTab(){
+  const weekStats = await computeThisWeekStats();
+  $("progWeekSets").textContent = weekStats.sets;
+  $("progWeekVolume").textContent = Math.round(toDisplayWeight(weekStats.volume)).toLocaleString();
+  $("progWeekWorkouts").textContent = weekStats.workouts;
+
+  const weeklyVolumes = await computeVolumeLast8Weeks();
+  const canvas = $("volumeChartCanvas");
+  if(canvas && window.Chart){
+    const ctx = canvas.getContext('2d');
+    if(volumeChartInstance) volumeChartInstance.destroy();
+    volumeChartInstance = new Chart(ctx, {
+      type: 'line',
+      data: {
+        labels: ['W1','W2','W3','W4','W5','W6','W7','W8'],
+        datasets: [{
+          data: weeklyVolumes,
+          borderColor: '#8DA55A',
+          backgroundColor: 'rgba(141,165,90,0.15)',
+          fill: true,
+          tension: 0.35,
+          pointRadius: 3,
+          pointBackgroundColor: '#8DA55A'
+        }]
+      },
+      options: {
+        responsive: true,
+        maintainAspectRatio: false,
+        plugins: { legend: { display:false } },
+        scales: {
+          x: { ticks:{ color:'#A1A19A', font:{ size:10 } }, grid:{ display:false } },
+          y: { ticks:{ color:'#A1A19A', font:{ size:10 } }, grid:{ color:'#23231F' } }
+        }
+      }
+    });
+  }
+
+  const rollingWeek = getRollingWeekDateKeys();
+  const muscles = await computeMuscleBreakdown(rollingWeek);
+  $("muscleBreakdownList").innerHTML = muscles.length
+    ? muscles.map(m=>`
+        <div class="mb-row">
+          <div class="mb-label">${escapeHTML(m.label)}</div>
+          <div class="mb-bar-track"><div class="mb-bar-fill" style="width:${m.pct}%"></div></div>
+          <div class="mb-pct">${m.pct}%</div>
+        </div>
+      `).join('')
+    : `<div class="eim-empty">Log some sets this week to see your muscle balance.</div>`;
+}
+
+async function computeTrainingBreakdown(){
+  const keys = await getAllSessionKeys();
+  const dateKeys = keys.map(k=>k.replace('session:',''));
+  const cutoff = new Date(); cutoff.setDate(cutoff.getDate()-30);
+  const recent = dateKeys.filter(dk=> new Date(dk) >= cutoff);
+  const byPlan = {};
+  for(const dk of recent){
+    const s = await getSession(dk);
+    for(const planKey of s.plan){
+      const def = await getPlanDef(planKey);
+      if(!def || def.type !== 'strength') continue;
+      const template = await getWorkoutTemplate(planKey);
+      const exNames = new Set(template.map(e=>e.name));
+      const relevantSets = s.sets.filter(set=>exNames.has(set.exercise));
+      if(!byPlan[def.label]) byPlan[def.label] = { sets:0, volume:0 };
+      byPlan[def.label].sets += relevantSets.length;
+      byPlan[def.label].volume += volumeOf(relevantSets);
+    }
+  }
+  return Object.entries(byPlan).map(([label,v])=>({ label, ...v })).sort((a,b)=> b.volume-a.volume);
+}
+async function renderProgressTrainingTab(){
+  const rows = await computeTrainingBreakdown();
+  $("trainingBreakdownList").innerHTML = rows.length
+    ? rows.map(r=>`
+        <div class="training-row">
+          <div class="training-name">${escapeHTML(r.label)}</div>
+          <div class="training-stats">${r.sets} sets · ${Math.round(toDisplayWeight(r.volume))} ${unitLabel()}</div>
+        </div>
+      `).join('')
+    : `<div class="eim-empty">No training logged in the last 30 days.</div>`;
+}
+
+async function renderProgressBodyTab(){
+  const total = await getStripTotalWeeks(0);
+  const rows = [];
+  for(let w=total; w>=0; w--){
+    const data = await getWeekData(w);
+    if(data.weight != null || data.bodyFat != null){
+      rows.push({ week:w, weight:data.weight, bodyFat:data.bodyFat });
+    }
+  }
+  $("bodyHistoryList").innerHTML = rows.length
+    ? rows.map(r=>`
+        <div class="training-row">
+          <div class="training-name">${r.week===0?'Start':'Week '+r.week}</div>
+          <div class="training-stats">${r.weight!=null?`${toDisplayWeight(r.weight)}${unitLabel()}`:'—'}${r.bodyFat!=null?` · ${r.bodyFat}% BF`:''}</div>
+        </div>
+      `).join('')
+    : `<div class="eim-empty">Add weight or body-fat during a weekly check-in to see it here.</div>`;
+}
+
+let progressSubTab = 'overview';
+async function switchProgressSubTab(tab){
+  progressSubTab = tab;
+  document.querySelectorAll('.prog-subtab').forEach(b=> b.classList.remove('active'));
+  const tabBtn = $(`progSubTab_${tab}`);
+  if(tabBtn) tabBtn.classList.add('active');
+  document.querySelectorAll('.prog-subpanel').forEach(p=> p.style.display = 'none');
+  const panel = $(`progPanel_${tab}`);
+  if(panel) panel.style.display = 'block';
+  if(tab === 'overview') await renderProgressOverviewTab();
+  if(tab === 'training') await renderProgressTrainingTab();
+  if(tab === 'body') await renderProgressBodyTab();
+  if(tab === 'photos') await renderProgression();
+}
+
+async function populateCompareSelectors(){
+  const total = await getStripTotalWeeks(0);
+  const options = [];
+  for(let w=total; w>=0; w--) options.push(w);
+  const optHTML = options.map(w=>`<option value="${w}">${w===0?'Start':'Week '+w}</option>`).join('');
+  $("compareWeekA").innerHTML = optHTML;
+  $("compareWeekB").innerHTML = optHTML;
+  if(options.length > 1){
+    $("compareWeekA").value = options[1];
+    $("compareWeekB").value = options[0];
+  }
+}
+function compareDeltaArrow(a, b){
+  if(a == null || b == null) return '';
+  if(b < a) return '<span class="compare-arrow down">↓</span>';
+  if(b > a) return '<span class="compare-arrow up">↑</span>';
+  return '';
+}
+async function renderCompareResult(){
+  const wA = Number($("compareWeekA").value);
+  const wB = Number($("compareWeekB").value);
+  const dataA = await getWeekData(wA);
+  const dataB = await getWeekData(wB);
+  const imgA = $("compareImgA");
+  const imgB = $("compareImgB");
+  imgA.src = dataA.photo || '';
+  imgA.style.display = dataA.photo ? 'block' : 'none';
+  imgB.src = dataB.photo || '';
+  imgB.style.display = dataB.photo ? 'block' : 'none';
+  $("compareLabelA").textContent = wA===0 ? 'Start' : 'Week '+wA;
+  $("compareLabelB").textContent = wB===0 ? 'Start' : 'Week '+wB;
+  $("compareStatsBody").innerHTML = `
+    <div class="compare-stat-row"><span>Weight</span><span>${dataA.weight!=null?toDisplayWeight(dataA.weight):'—'}${unitLabel()}</span><span>${dataB.weight!=null?toDisplayWeight(dataB.weight):'—'}${unitLabel()} ${compareDeltaArrow(dataA.weight,dataB.weight)}</span></div>
+    <div class="compare-stat-row"><span>Body fat</span><span>${dataA.bodyFat!=null?dataA.bodyFat:'—'}%</span><span>${dataB.bodyFat!=null?dataB.bodyFat:'—'}% ${compareDeltaArrow(dataA.bodyFat,dataB.bodyFat)}</span></div>
+  `;
+}
+
 async function renderProgression(){
   const startStr = await getProgramStart();
   const card = $("progCard");
@@ -1720,20 +2011,39 @@ async function togglePlan(planKey){
   });
   await renderAll();
 }
+let workoutLibraryFilter = 'all';
+let workoutLibrarySearch = '';
+let exerciseLibraryMuscleFilter = null;
+
 async function renderPlanGrid(){
   const session = await getSession(todayKey);
   const grid = $("planGrid");
   grid.innerHTML = "";
   const defs = await getAllPlanDefs();
-  defs.forEach(w=>{
-    const btn = document.createElement("button");
-    const active = session.plan.includes(w.key);
-    btn.className = `plan-btn ${active?'active':''}`;
-    btn.textContent = w.label;
-    btn.addEventListener('click', ()=>togglePlan(w.key));
-    grid.appendChild(btn);
+  const filtered = defs.filter(w=>{
+    const matchesFilter = workoutLibraryFilter === 'all' || w.key === workoutLibraryFilter;
+    const matchesSearch = !workoutLibrarySearch || w.label.toLowerCase().includes(workoutLibrarySearch.toLowerCase());
+    return matchesFilter && matchesSearch;
   });
+  for(const w of filtered){
+    const active = session.plan.includes(w.key);
+    const exercises = w.type === 'strength' ? await getWorkoutTemplate(w.key) : (w.exercises || []);
+    const card = document.createElement('button');
+    card.type = 'button';
+    card.className = `wl-card ${active?'active':''}`;
+    card.innerHTML = `
+      <div class="wl-card-icon">${w.type==='checklist' ? '🧩' : '🏋️'}</div>
+      <div class="wl-card-body">
+        <div class="wl-card-title">${escapeHTML(w.label)}</div>
+        <div class="wl-card-sub">${escapeHTML(w.focus || '')}</div>
+        <div class="wl-card-count">${exercises.length} exercise${exercises.length===1?'':'s'}</div>
+      </div>
+    `;
+    card.addEventListener('click', ()=>togglePlan(w.key));
+    grid.appendChild(card);
+  }
   const addBtn = document.createElement("button");
+  addBtn.type = 'button';
   addBtn.className = 'plan-btn full-width';
   addBtn.textContent = '+ Create a new workout';
   addBtn.addEventListener('click', ()=>{
@@ -2113,7 +2423,33 @@ async function renderPlanSection(){
         const profile = await getProfile();
         group.appendChild(buildTemplateEditor(key, exercises, profile.equipment));
       } else {
+        const presentMuscles = new Set();
+        exercises.forEach(ex=>{
+          const d = findExerciseData(ex.name);
+          if(d && d.muscle) presentMuscles.add(d.muscle);
+        });
+        if(presentMuscles.size > 1){
+          const filterRow = document.createElement('div');
+          filterRow.className = 'muscle-filter-row';
+          const allChip = document.createElement('button');
+          allChip.type = 'button';
+          allChip.className = `muscle-filter-chip ${!exerciseLibraryMuscleFilter ? 'active' : ''}`;
+          allChip.textContent = 'All';
+          allChip.addEventListener('click', async ()=>{ exerciseLibraryMuscleFilter = null; await renderPlanSection(); });
+          filterRow.appendChild(allChip);
+          MUSCLE_GROUP_OPTIONS.filter(m=>presentMuscles.has(m.key)).forEach(m=>{
+            const chip = document.createElement('button');
+            chip.type = 'button';
+            chip.className = `muscle-filter-chip ${exerciseLibraryMuscleFilter===m.key ? 'active' : ''}`;
+            chip.textContent = m.label;
+            chip.addEventListener('click', async ()=>{ exerciseLibraryMuscleFilter = m.key; await renderPlanSection(); });
+            filterRow.appendChild(chip);
+          });
+          group.appendChild(filterRow);
+        }
         for(const ex of exercises){
+          const d = findExerciseData(ex.name);
+          if(exerciseLibraryMuscleFilter && (!d || d.muscle !== exerciseLibraryMuscleFilter)) continue;
           const logged = grouped.get(ex.name) || [];
           const isCompleted = (session.completed || []).includes(ex.name);
           const card = await buildExerciseCard(ex, logged, isCompleted);
@@ -2551,6 +2887,33 @@ async function init(){
   });
   $("bellBtn").addEventListener('click', ()=> showToast("No new notifications yet"));
 
+  $("workoutSearchInput").addEventListener('input', async (e)=>{
+    workoutLibrarySearch = e.target.value;
+    await renderPlanGrid();
+  });
+  document.querySelectorAll('#workoutFilterRow .muscle-filter-chip').forEach(chip=>{
+    chip.addEventListener('click', async ()=>{
+      document.querySelectorAll('#workoutFilterRow .muscle-filter-chip').forEach(c=> c.classList.remove('active'));
+      chip.classList.add('active');
+      workoutLibraryFilter = chip.dataset.filter;
+      await renderPlanGrid();
+    });
+  });
+
+  document.querySelectorAll('.prog-subtab').forEach(btn=>{
+    btn.addEventListener('click', ()=> switchProgressSubTab(btn.dataset.tab));
+  });
+
+  $("openCompareBtn").addEventListener('click', async ()=>{
+    await populateCompareSelectors();
+    await renderCompareResult();
+    $("compareModal").classList.add('open');
+  });
+  $("compareModalClose").addEventListener('click', ()=> $("compareModal").classList.remove('open'));
+  $("compareModal").addEventListener('click', (e)=>{ if(e.target.id === 'compareModal') $("compareModal").classList.remove('open'); });
+  $("compareWeekA").addEventListener('change', renderCompareResult);
+  $("compareWeekB").addEventListener('change', renderCompareResult);
+
   $("wssBackBtn").addEventListener('click', closeWorkoutSession);
 
   $("loggingBackBtn").addEventListener('click', async ()=>{
@@ -2644,7 +3007,7 @@ async function init(){
     $("profileModal").classList.remove('open');
     $("profileModal").classList.remove('tab-page');
     showAppPage('progressPage');
-    await renderProgression();
+    await switchProgressSubTab('overview');
   });
   $("tabYouBtn").addEventListener('click', ()=>{
     setActiveTab('tabYouBtn');

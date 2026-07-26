@@ -123,6 +123,24 @@
   </div>
 </div>
 
+<div class="finish-modal" id="compareModal">
+  <div class="finish-modal-content" style="max-width:380px;">
+    <button class="photo-modal-close" id="compareModalClose">✕</button>
+    <div class="finish-title">Compare</div>
+    <div class="compare-selectors">
+      <select id="compareWeekA"></select>
+      <span>vs</span>
+      <select id="compareWeekB"></select>
+    </div>
+    <div class="compare-photos">
+      <div class="compare-photo-col"><img id="compareImgA" class="compare-photo-img"><div class="compare-photo-label" id="compareLabelA"></div></div>
+      <div class="compare-photo-col"><img id="compareImgB" class="compare-photo-img"><div class="compare-photo-label" id="compareLabelB"></div></div>
+    </div>
+    <div class="section-title">Progress snapshot</div>
+    <div id="compareStatsBody"></div>
+  </div>
+</div>
+
 <div class="finish-modal" id="profileModal">
   <div class="finish-modal-content profile-modal-content">
     <button class="photo-modal-close" id="profileModalClose">✕</button>
@@ -257,6 +275,14 @@
 
 <div id="workoutsPage" class="app-page">
   <div class="page-heading">Workouts</div>
+  <input type="text" id="workoutSearchInput" class="wl-search-input" placeholder="Search workouts">
+  <div class="muscle-filter-row" id="workoutFilterRow">
+    <button type="button" class="muscle-filter-chip active" data-filter="all">All</button>
+    <button type="button" class="muscle-filter-chip" data-filter="warmup">Warm-up</button>
+    <button type="button" class="muscle-filter-chip" data-filter="lower">Lower</button>
+    <button type="button" class="muscle-filter-chip" data-filter="upper">Upper</button>
+    <button type="button" class="muscle-filter-chip" data-filter="full">Full Body</button>
+  </div>
   <button class="repeat-btn" id="repeatWorkoutBtn" style="display:none;">↻ Repeat previous workout</button>
   <div class="plan-grid" id="planGrid"></div>
   <div class="new-workout-form" id="newWorkoutForm">
@@ -272,8 +298,40 @@
 
 <div id="progressPage" class="app-page">
   <div class="page-heading">Progress</div>
-  <div class="section-title">Progression</div>
-  <div id="progCard" class="prog-card"></div>
+  <div class="prog-subtabs">
+    <button type="button" class="prog-subtab active" id="progSubTab_overview" data-tab="overview">Overview</button>
+    <button type="button" class="prog-subtab" id="progSubTab_training" data-tab="training">Training</button>
+    <button type="button" class="prog-subtab" id="progSubTab_body" data-tab="body">Body</button>
+    <button type="button" class="prog-subtab" id="progSubTab_photos" data-tab="photos">Photos</button>
+  </div>
+
+  <div class="prog-subpanel" id="progPanel_overview">
+    <div class="this-week-stats">
+      <div class="tws-item"><div class="tws-value" id="progWeekSets">0</div><div class="tws-label">Sets</div></div>
+      <div class="tws-item"><div class="tws-value" id="progWeekVolume">0</div><div class="tws-label">Volume (kg)</div></div>
+      <div class="tws-item"><div class="tws-value" id="progWeekWorkouts">0</div><div class="tws-label">Workouts</div></div>
+    </div>
+    <div class="section-title">Volume over time</div>
+    <div class="volume-chart-wrap"><canvas id="volumeChartCanvas"></canvas></div>
+    <div class="section-title">Muscle groups (this week)</div>
+    <div id="muscleBreakdownList"></div>
+  </div>
+
+  <div class="prog-subpanel" id="progPanel_training" style="display:none;">
+    <div class="section-title">Last 30 days by workout</div>
+    <div id="trainingBreakdownList"></div>
+  </div>
+
+  <div class="prog-subpanel" id="progPanel_body" style="display:none;">
+    <div class="section-title">Weight & body fat history</div>
+    <div id="bodyHistoryList"></div>
+  </div>
+
+  <div class="prog-subpanel" id="progPanel_photos" style="display:none;">
+    <div class="section-title">Progression</div>
+    <div id="progCard" class="prog-card"></div>
+    <button type="button" class="checkin-btn" id="openCompareBtn" style="width:100%; margin-top:10px;">Compare check-ins</button>
+  </div>
 </div>
 
 <nav class="bottom-tab-bar" id="bottomTabBar">
@@ -285,6 +343,7 @@
 
 <datalist id="exerciseOptions"></datalist>
 
+<script src="https://cdn.jsdelivr.net/npm/chart.js@4"></script>
 <script src="script.js?v=2"></script>
 <script>
   setTimeout(function(){
