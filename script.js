@@ -544,9 +544,9 @@ function dataPageHTML(){
     <button type="button" class="checkin-btn" id="exportDataBtn" style="width:100%; margin-bottom:10px;">Export backup</button>
     <button type="button" class="checkin-btn" id="importDataBtn" style="width:100%; margin-bottom:10px;">Import backup</button>
     <button type="button" class="checkin-btn" id="resetProfileBtn" style="width:100%; margin-bottom:10px;">Reset profile info</button>
-    <button type="button" class="checkin-btn" id="clearHistoryBtn" style="width:100%; margin-bottom:10px; color:var(--rust); border-color:var(--rust);">Clear all workout history</button>
+    <button type="button" class="checkin-btn" id="clearHistoryBtn" style="width:100%; margin-bottom:10px; color:var(--error); border-color:var(--error);">Clear all workout history</button>
     <div class="reset-app-warning">⚠️ This erases everything — export a backup first if you want to keep your data.</div>
-    <button type="button" class="checkin-btn" id="resetAppBtn" style="width:100%; color:var(--rust); border-color:var(--rust);">Reset app (erase everything)</button>
+    <button type="button" class="checkin-btn" id="resetAppBtn" style="width:100%; color:var(--error); border-color:var(--error);">Reset app (erase everything)</button>
   `;
 }
 
@@ -808,14 +808,7 @@ async function closeProfileModal(){
 }
 
 /* ---------- monthly recap ---------- */
-const MASCOT_SVG = `<svg viewBox="0 0 100 100" xmlns="http://www.w3.org/2000/svg">
-  <circle cx="50" cy="54" r="38" fill="var(--moss)"/>
-  <rect x="8" y="28" width="84" height="11" rx="5" fill="var(--amber)"/>
-  <circle cx="38" cy="52" r="5" fill="#15140F"/>
-  <circle cx="62" cy="52" r="5" fill="#15140F"/>
-  <path d="M34 66 Q50 80 66 66" stroke="#15140F" stroke-width="4" fill="none" stroke-linecap="round"/>
-  <path d="M72 26 Q77 18 82 26 Q82 33 74 33 Q73 29 72 26 Z" fill="#8EC9F0"/>
-</svg>`;
+const MASCOT_IMG_HTML = `<img src="icons/mascot/flexing.png" alt="PumpPal mascot" style="width:100%; height:100%; object-fit:contain;">`;
 
 function daysInMonth(year, monthIndex){ return new Date(year, monthIndex+1, 0).getDate(); }
 function formatDurationLong(ms){
@@ -941,7 +934,7 @@ function renderRecapContent(recap){
     : `<div class="recap-empty">No new PRs this month — keep pushing!</div>`;
 
   return `
-    <div class="recap-mascot">${MASCOT_SVG}</div>
+    <div class="recap-mascot">${MASCOT_IMG_HTML}</div>
     <div class="recap-month-title">${escapeHTML(recap.monthLabel)}</div>
 
     ${recapStatRow('🏋️', 'Workouts completed', recap.workoutsCompleted, deltaWorkoutsHTML)}
@@ -992,7 +985,7 @@ async function checkForMonthlyRecap(){
   pendingRecapMonth = { year, monthIndex, key: monthKey };
   const banner = $("recapBanner");
   const monthLabel = new Date(year, monthIndex, 1).toLocaleDateString(undefined, { month:'long' });
-  $("recapBannerMascot").innerHTML = MASCOT_SVG;
+  $("recapBannerMascot").innerHTML = MASCOT_IMG_HTML;
   $("recapBannerText").textContent = `🎉 Your ${monthLabel} Recap is ready! Tap it.`;
   banner.style.display = 'flex';
 }
