@@ -189,6 +189,30 @@ main{padding:24px 20px 0;}
 .training-name{font-size:13px; font-weight:600; color:var(--text);}
 .training-stats{font-size:12px; color:var(--text-dim);}
 
+.settings-row{display:flex; align-items:center; gap:12px; width:100%; background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-card); padding:14px; margin-bottom:8px; cursor:pointer; text-decoration:none; box-sizing:border-box; text-align:left;}
+.settings-row-icon{font-size:20px; flex-shrink:0; width:32px; height:32px; border-radius:10px; background:var(--surface-2); display:flex; align-items:center; justify-content:center;}
+.settings-row-body{flex:1; min-width:0; display:flex; flex-direction:column;}
+.settings-row-title{font-family:'Inter',sans-serif; font-size:13px; font-weight:600; color:var(--text);}
+.settings-row-sub{font-size:11px; color:var(--text-dim); margin-top:2px;}
+.settings-row-danger .settings-row-title{color:var(--error);}
+.settings-row-danger{border-color:var(--error);}
+
+.faq-item{margin-bottom:8px;}
+.faq-question{display:flex; align-items:center; justify-content:space-between; width:100%; background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-card); padding:12px 14px; color:var(--text); font-size:13px; font-weight:600; cursor:pointer; text-align:left;}
+.faq-chevron{color:var(--text-dim); transition:transform .2s ease;}
+.faq-question.open .faq-chevron{transform:rotate(90deg);}
+.faq-answer{background:var(--surface-2); border-radius:0 0 var(--radius-card) var(--radius-card); padding:12px 14px; font-size:12px; color:var(--text-dim); line-height:1.5; margin-top:-1px;}
+.faq-answer p{margin:0;}
+
+.about-hero{text-align:center; margin-bottom:16px;}
+.about-mascot-img{width:88px; height:88px; border-radius:16px; object-fit:cover; margin-bottom:10px;}
+.about-wordmark{font-family:var(--font-display); font-size:24px; color:var(--text);}
+.about-wordmark span{color:var(--moss);}
+.about-tagline{font-size:12px; color:var(--text-dim); margin-top:4px;}
+.about-info-list{background:var(--surface); border-radius:var(--radius-card); padding:4px 14px; margin-bottom:16px;}
+.about-info-row{display:flex; justify-content:space-between; padding:10px 0; font-size:12px; color:var(--text); border-bottom:1px solid var(--border);}
+.about-info-row:last-child{border-bottom:none;}
+
 .recap-nav{display:flex; align-items:center; justify-content:space-between; margin-bottom:8px;}
 .recap-nav-btn{background:var(--surface-2); border:none; color:var(--text); width:28px; height:28px; border-radius:50%; font-size:16px; cursor:pointer;}
 .recap-nav-month{font-size:12px; color:var(--text-dim); font-weight:600;}

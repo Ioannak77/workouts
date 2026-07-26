@@ -386,7 +386,8 @@ function defaultProfile(){
     equipment: [],
     units: 'kg',
     restTimerSeconds: 30,
-    timerAlert: 'sound'
+    timerAlert: 'sound',
+    theme: 'system'
   };
 }
 async function getProfile(){
@@ -440,6 +441,12 @@ async function setProfileUnits(units){
   await saveProfile(profile);
   await renderProfileModal();
 }
+async function setProfileTheme(theme){
+  const profile = await getProfile();
+  profile.theme = theme;
+  await saveProfile(profile);
+  await renderProfileModal();
+}
 async function setProfileRestTimer(seconds){
   const profile = await getProfile();
   profile.restTimerSeconds = seconds;
@@ -465,6 +472,53 @@ function displayName(profile){
   const n = (profile.name || '').trim();
   return n ? n : 'Athlete';
 }
+
+function settingsRow(icon, title, subtitle, dataView){
+  return `
+    <button type="button" class="settings-row" data-view="${dataView}">
+      <span class="settings-row-icon">${icon}</span>
+      <span class="settings-row-body"><span class="settings-row-title">${escapeHTML(title)}</span><span class="settings-row-sub">${escapeHTML(subtitle)}</span></span>
+      <span class="pmi-arrow">›</span>
+    </button>
+  `;
+}
+function settingsLinkRow(icon, title, subtitle, href){
+  return `
+    <a class="settings-row" href="${href}">
+      <span class="settings-row-icon">${icon}</span>
+      <span class="settings-row-body"><span class="settings-row-title">${escapeHTML(title)}</span><span class="settings-row-sub">${escapeHTML(subtitle)}</span></span>
+      <span class="pmi-arrow">›</span>
+    </a>
+  `;
+}
+function settingsActionRow(icon, title, subtitle, id, danger){
+  return `
+    <button type="button" class="settings-row ${danger?'settings-row-danger':''}" id="${id}">
+      <span class="settings-row-icon">${icon}</span>
+      <span class="settings-row-body"><span class="settings-row-title">${escapeHTML(title)}</span><span class="settings-row-sub">${escapeHTML(subtitle)}</span></span>
+      <span class="pmi-arrow">›</span>
+    </button>
+  `;
+}
+function accordionItemHTML(id, question, answerHTML){
+  return `
+    <div class="faq-item">
+      <button type="button" class="faq-question" data-faq="${id}"><span>${escapeHTML(question)}</span><span class="faq-chevron">›</span></button>
+      <div class="faq-answer" id="faqAnswer_${id}" style="display:none;">${answerHTML}</div>
+    </div>
+  `;
+}
+function wireAccordions(container){
+  container.querySelectorAll('.faq-question').forEach(btn=>{
+    btn.addEventListener('click', ()=>{
+      const answer = $(`faqAnswer_${btn.dataset.faq}`);
+      const isOpen = answer.style.display === 'block';
+      answer.style.display = isOpen ? 'none' : 'block';
+      btn.classList.toggle('open', !isOpen);
+    });
+  });
+}
+
 function profileHubHTML(profile){
   return `
     <div class="finish-title">Settings</div>
@@ -473,11 +527,11 @@ function profileHubHTML(profile){
       <input type="text" id="profileNameInput" class="profile-name-input" placeholder="Display name (optional)" value="${escapeHTML(profile.name || '')}">
     </div>
     <div class="profile-menu">
-      <button type="button" class="profile-menu-item" data-view="equipment"><span>Equipment</span><span class="pmi-arrow">›</span></button>
-      <button type="button" class="profile-menu-item" data-view="preferences"><span>Preferences</span><span class="pmi-arrow">›</span></button>
-      <button type="button" class="profile-menu-item" data-view="progress"><span>Progress</span><span class="pmi-arrow">›</span></button>
-      <button type="button" class="profile-menu-item" data-view="data"><span>Data</span><span class="pmi-arrow">›</span></button>
-      <button type="button" class="profile-menu-item" data-view="help"><span>Help</span><span class="pmi-arrow">›</span></button>
+      ${settingsRow('⚙️', 'Preferences', 'Customize your units, timers, alerts, and more.', 'preferences')}
+      ${settingsRow('🏋️', 'Equipment', 'Manage the equipment you have access to.', 'equipment')}
+      ${settingsRow('📊', 'Progress & Data', 'Manage backups, export data, and clear history.', 'data')}
+      ${settingsRow('❓', 'Help & Support', 'Get help, suggest features, or report an issue.', 'help')}
+      ${settingsRow('ℹ️', 'About PumpPal', 'App info, terms, and acknowledgements.', 'about')}
     </div>
   `;
 }
@@ -509,51 +563,47 @@ function preferencesPageHTML(){
     <div class="profile-section-title">Timer alert</div>
     <div class="profile-hint" style="margin-top:0;">How you're notified when rest is over.</div>
     <div class="plan-grid" id="timerAlertGrid"></div>
-  `;
-}
-async function progressPageHTML(){
-  const startStr = await getProgramStart();
-  const week = startStr ? currentWeekFromStart(startStr) : null;
-  const total = await getStripTotalWeeks(week || 0);
-
-  let rows = '';
-  let hasAny = false;
-  for(let w=0; w<=total; w++){
-    const data = await getWeekData(w);
-    if(!data.photo && data.weight == null && data.bodyFat == null) continue;
-    hasAny = true;
-    const label = w === 0 ? 'Start' : `Week ${w}`;
-    rows += `
-      <div class="progress-history-row" data-week="${w}">
-        ${data.photo ? `<img src="${data.photo}" alt="${label}">` : `<div class="progress-history-noimg">No photo</div>`}
-        <div class="progress-history-info">
-          <div class="progress-history-label">${escapeHTML(label)}</div>
-          <div class="progress-history-stats">${data.weight != null ? `${toDisplayWeight(data.weight)}${unitLabel()}` : '—'} · ${data.bodyFat != null ? `${data.bodyFat}% BF` : '—'}</div>
-        </div>
-      </div>
-    `;
-  }
-
-  return `
-    ${subPageHeaderHTML('Progress')}
-    <div class="profile-hint" style="margin-top:0;">
-      ${week ? `You're in week ${week} of your progression plan.` : `You haven't started a progression plan yet.`}
+    <div class="profile-section-title">Theme</div>
+    <div class="profile-hint" style="margin-top:0;">PumpPal is currently dark-only — Light and System are saved as a preference for a future update.</div>
+    <div class="plan-grid" id="themeGrid">
+      <button type="button" class="plan-btn" data-theme="system">System</button>
+      <button type="button" class="plan-btn" data-theme="light">Light</button>
+      <button type="button" class="plan-btn" data-theme="dark">Dark</button>
     </div>
-    <div class="profile-section-title">Check-in history</div>
-    ${hasAny ? `<div class="progress-history-list">${rows}</div>` : `<div class="profile-hint">No check-ins logged yet — add one from the Progression card on your home screen.</div>`}
-    <button type="button" class="checkin-btn" id="viewRecapBtn" style="width:100%; margin-top:14px;">View last month's recap</button>
   `;
 }
 function dataPageHTML(){
   return `
-    ${subPageHeaderHTML('Data')}
-    <div class="profile-hint" style="margin-top:0;">Your workouts, sets, and photos are stored on this device only.</div>
-    <button type="button" class="checkin-btn" id="exportDataBtn" style="width:100%; margin-bottom:10px;">Export backup</button>
-    <button type="button" class="checkin-btn" id="importDataBtn" style="width:100%; margin-bottom:10px;">Import backup</button>
-    <button type="button" class="checkin-btn" id="resetProfileBtn" style="width:100%; margin-bottom:10px;">Reset profile info</button>
-    <button type="button" class="checkin-btn" id="clearHistoryBtn" style="width:100%; margin-bottom:10px; color:var(--error); border-color:var(--error);">Clear all workout history</button>
-    <div class="reset-app-warning">⚠️ This erases everything — export a backup first if you want to keep your data.</div>
-    <button type="button" class="checkin-btn" id="resetAppBtn" style="width:100%; color:var(--error); border-color:var(--error);">Reset app (erase everything)</button>
+    ${subPageHeaderHTML('Progress & Data')}
+    <div class="profile-section-title" style="margin-top:0;">Data management</div>
+    ${settingsActionRow('☁️', 'Export backup', 'Save your data to a file', 'exportDataBtn')}
+    ${settingsActionRow('📥', 'Import backup', 'Restore data from a file', 'importDataBtn')}
+    <div class="profile-section-title">Workout data</div>
+    ${settingsActionRow('👤', 'Reset profile info', 'Reset your personal details', 'resetProfileBtn')}
+    ${settingsActionRow('🗑️', 'Clear workout history', 'Delete all workout history', 'clearHistoryBtn', true)}
+    ${settingsActionRow('⚠️', 'Reset app (erase everything)', 'This will delete all data', 'resetAppBtn', true)}
+    <div class="profile-hint" style="margin-top:14px;">⚠️ This action cannot be undone. Please export a backup if you want to keep your data.</div>
+  `;
+}
+function aboutPageHTML(){
+  return `
+    ${subPageHeaderHTML('About PumpPal')}
+    <div class="about-hero">
+      <img src="icons/mascot/headshot.png" alt="PumpPal mascot" class="about-mascot-img">
+      <div class="about-wordmark">PUMP<span>PAL</span></div>
+      <div class="about-tagline">Your workout. Your way. ♥</div>
+    </div>
+    <div class="about-info-list">
+      <div class="about-info-row"><span>Version</span><span>${APP_VERSION}</span></div>
+    </div>
+    ${accordionItemHTML('whatsnew', "What's New", '<p>Version 1.0.0 — Initial release with workout logging, progression tracking, monthly recaps, and more.</p>')}
+    ${accordionItemHTML('terms', 'Terms of Service', '<p>PumpPal is provided as-is for personal use. Use it to support your training; we are not responsible for injury resulting from exercise performed using this app.</p>')}
+    ${accordionItemHTML('privacy', 'Privacy Policy', '<p>PumpPal stores all data locally on your device. Nothing is uploaded to a server, and no account is required.</p>')}
+    ${accordionItemHTML('ack', 'Acknowledgements', '<p>Built with Chart.js. Mascot artwork created for PumpPal. Thanks for supporting PumpPal!</p>')}
+    <div class="help-footer">
+      <div>Built with ❤️ by Ioanna</div>
+      <div>Thanks for supporting PumpPal!</div>
+    </div>
   `;
 }
 
@@ -617,16 +667,19 @@ function mailtoLink(subject, body){
 }
 function helpPageHTML(){
   return `
-    ${subPageHeaderHTML('Help')}
-    <div class="profile-hint" style="margin-top:0;">
-      PumpPal tracks your workouts, rest timers, and weekly progress photos — all stored privately on this device.
-      <br><br>
-      Tap a workout to log sets, or Edit to build your own from your available equipment.
-    </div>
-    <div class="profile-menu" style="margin-top:16px;">
-      <a class="profile-menu-item" href="${mailtoLink('PumpPal — Bug report', 'Describe the bug here:')}"><span>🐞 Report a bug</span></a>
-      <a class="profile-menu-item" href="${mailtoLink('PumpPal — Feature suggestion', 'Describe your idea here:')}"><span>💡 Suggest a feature</span></a>
-      <a class="profile-menu-item" href="${mailtoLink('PumpPal — Exercise request', 'Which exercise would you like added?')}"><span>🏋 Request an exercise</span></a>
+    ${subPageHeaderHTML('Help & Support')}
+    ${settingsLinkRow('🐞', 'Report a bug', 'Something not working?', mailtoLink('PumpPal — Bug report', 'Describe the bug here:'))}
+    ${settingsLinkRow('💡', 'Suggest a feature', 'Share your ideas', mailtoLink('PumpPal — Feature suggestion', 'Describe your idea here:'))}
+    ${settingsLinkRow('🏋', 'Request an exercise', "Can't find an exercise?", mailtoLink('PumpPal — Exercise request', 'Which exercise would you like added?'))}
+
+    <div class="profile-section-title">FAQ</div>
+    ${accordionItemHTML('log', 'How do I log a workout?', '<p>Tap a workout on the Workouts tab, then Start Workout on Home. Enter your reps and weight for each set and tap Log Set.</p>')}
+    ${accordionItemHTML('storage', 'Where is my data stored?', '<p>Everything stays on this device only — no account, no server. Use Progress & Data to export a backup file anytime.</p>')}
+    ${accordionItemHTML('rest', 'How do rest timers work?', '<p>Most exercises have a built-in recommended rest time. You can set a fallback default in Preferences for any exercise without one.</p>')}
+
+    <div class="profile-section-title">Contact</div>
+    ${settingsLinkRow('📧', 'Email us', 'We usually reply within 24h', mailtoLink('PumpPal — Support', 'Hi PumpPal team,'))}
+
     <div class="help-footer">
       <div>Version ${APP_VERSION}</div>
       <div>Built with ❤️ by Ioanna</div>
@@ -646,7 +699,7 @@ async function renderProfileModal(){
   if(profileView === 'hub'){
     body.innerHTML = profileHubHTML(profile);
     $("profileNameInput").addEventListener('change', (e)=> setProfileName(e.target.value.trim()));
-    body.querySelectorAll('.profile-menu-item').forEach(btn=>{
+    body.querySelectorAll('.settings-row').forEach(btn=>{
       btn.addEventListener('click', ()=>{ profileView = btn.dataset.view; renderProfileModal(); });
     });
     return;
@@ -695,27 +748,18 @@ async function renderProfileModal(){
       btn.addEventListener('click', ()=> setProfileTimerAlert(opt.key));
       alertGrid.appendChild(btn);
     });
+    const themeGrid = $("themeGrid");
+    themeGrid.querySelectorAll('.plan-btn').forEach(btn=>{
+      btn.classList.toggle('active', btn.dataset.theme === (profile.theme || 'system'));
+      btn.addEventListener('click', ()=> setProfileTheme(btn.dataset.theme));
+    });
     wireBackButton();
     return;
   }
 
-  if(profileView === 'progress'){
-    body.innerHTML = await progressPageHTML();
-    body.querySelectorAll('.progress-history-row').forEach(row=>{
-      row.addEventListener('click', ()=>{
-        closeProfileModal();
-        openPhotoModal(Number(row.dataset.week));
-      });
-    });
-    const viewRecapBtn = $("viewRecapBtn");
-    if(viewRecapBtn){
-      viewRecapBtn.addEventListener('click', async ()=>{
-        const now = new Date();
-        const prevDate = new Date(now.getFullYear(), now.getMonth()-1, 1);
-        closeProfileModal();
-        await openMonthlyRecap(prevDate.getFullYear(), prevDate.getMonth());
-      });
-    }
+  if(profileView === 'about'){
+    body.innerHTML = aboutPageHTML();
+    wireAccordions(body);
     wireBackButton();
     return;
   }
@@ -768,6 +812,7 @@ async function renderProfileModal(){
 
   if(profileView === 'help'){
     body.innerHTML = helpPageHTML();
+    wireAccordions(body);
     wireBackButton();
     return;
   }
@@ -2902,6 +2947,12 @@ async function init(){
 
   document.querySelectorAll('.prog-subtab').forEach(btn=>{
     btn.addEventListener('click', ()=> switchProgressSubTab(btn.dataset.tab));
+  });
+
+  $("viewRecapBtn").addEventListener('click', async ()=>{
+    const now = new Date();
+    const prevDate = new Date(now.getFullYear(), now.getMonth()-1, 1);
+    await openMonthlyRecap(prevDate.getFullYear(), prevDate.getMonth());
   });
 
   $("openCompareBtn").addEventListener('click', async ()=>{
