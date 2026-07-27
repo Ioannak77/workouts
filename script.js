@@ -405,7 +405,7 @@ async function saveProfile(profile){
 }
 async function setProfileName(name){
   const profile = await getProfile();
-  profile.name = name;
+  profile.name = name.slice(0, 15);
   await saveProfile(profile);
 }
 
@@ -524,7 +524,7 @@ function profileHubHTML(profile){
     <div class="finish-title">Settings</div>
     <div class="profile-greeting">Hi, ${escapeHTML(displayName(profile))}!</div>
     <div class="profile-identity">
-      <input type="text" id="profileNameInput" class="profile-name-input" placeholder="Display name (optional)" value="${escapeHTML(profile.name || '')}">
+      <input type="text" id="profileNameInput" class="profile-name-input" placeholder="Display name (optional)" value="${escapeHTML(profile.name || '')}" maxlength="15">
     </div>
     <div class="profile-menu">
       ${settingsRow('⚙️', 'Preferences', 'Customize your units, timers, alerts, and more.', 'preferences')}
@@ -870,9 +870,10 @@ function closeExerciseImageModal(){
 /* ---------- home screen ---------- */
 function getGreetingSub(){
   const h = new Date().getHours();
-  if(h < 12) return 'Good morning,';
-  if(h < 18) return 'Good afternoon,';
-  return 'Good evening,';
+  if(h >= 5 && h < 12) return 'Good morning,';
+  if(h >= 12 && h < 18) return 'Good afternoon,';
+  if(h >= 18 && h < 23) return 'Good evening,';
+  return 'Hey,';
 }
 async function renderGreeting(){
   const profile = await getProfile();
@@ -899,7 +900,7 @@ function renderFocusTip(){
   const el = $("focusTipCard");
   if(!el) return;
   el.innerHTML = `
-    <div class="ftc-thumb"></div>
+    <div class="ftc-thumb"><img class="mascot-wave" src="icons/mascot/headshot.png" alt="" style="width:100%; height:100%; object-fit:cover; border-radius:10px;"></div>
     <div class="ftc-body">
       <div class="ftc-label">Focus tip</div>
       <div class="ftc-text">${escapeHTML(getDailyFocusTip())}</div>
@@ -1126,7 +1127,7 @@ async function closeProfileModal(){
 }
 
 /* ---------- monthly recap ---------- */
-const MASCOT_IMG_HTML = `<img src="icons/mascot/flexing.png" alt="PumpPal mascot" style="width:100%; height:100%; object-fit:contain;">`;
+const MASCOT_IMG_HTML = `<img class="mascot-wave" src="icons/mascot/flexing.png" alt="PumpPal mascot" style="width:100%; height:100%; object-fit:contain;">`;
 
 function daysInMonth(year, monthIndex){ return new Date(year, monthIndex+1, 0).getDate(); }
 function formatDurationLong(ms){
@@ -1843,9 +1844,9 @@ async function computeMuscleBreakdown(dateKeysToCheck){
 let volumeChartInstance = null;
 async function renderProgressOverviewTab(){
   const weekStats = await computeThisWeekStats();
-  $("progWeekSets").textContent = weekStats.sets;
-  $("progWeekVolume").textContent = Math.round(toDisplayWeight(weekStats.volume)).toLocaleString();
-  $("progWeekWorkouts").textContent = weekStats.workouts;
+  animateNumber($("progWeekSets"), weekStats.sets);
+  animateNumber($("progWeekVolume"), Math.round(toDisplayWeight(weekStats.volume)));
+  animateNumber($("progWeekWorkouts"), weekStats.workouts);
 
   const weeklyVolumes = await computeVolumeLast8Weeks();
   const canvas = $("volumeChartCanvas");
@@ -2734,10 +2735,31 @@ async function renderExtras(){
 }
 
 /* ---------- stats + history ---------- */
+function animateNumber(el, targetValue, duration){
+  duration = duration || 600;
+  if(!el) return;
+  const reduce = window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+  const isFloat = !Number.isInteger(targetValue);
+  if(reduce){
+    el.textContent = isFloat ? targetValue.toFixed(1) : Math.round(targetValue).toLocaleString();
+    return;
+  }
+  const startTime = performance.now();
+  function tick(now){
+    const progress = Math.min(1, (now-startTime)/duration);
+    const eased = 1 - Math.pow(1-progress, 3);
+    const current = targetValue * eased;
+    el.textContent = isFloat ? current.toFixed(1) : Math.round(current).toLocaleString();
+    if(progress < 1) requestAnimationFrame(tick);
+    else el.textContent = isFloat ? targetValue.toFixed(1) : Math.round(targetValue).toLocaleString();
+  }
+  requestAnimationFrame(tick);
+}
+
 async function renderStats(){
   const session = await getSession(todayKey);
-  $("statSets").textContent = session.sets.length;
-  $("statVolume").textContent = Math.round(toDisplayWeight(volumeOf(session.sets)));
+  animateNumber($("statSets"), session.sets.length);
+  animateNumber($("statVolume"), Math.round(toDisplayWeight(volumeOf(session.sets))));
   $("statVolumeLabel").textContent = `Volume (${unitLabel()})`;
 }
 async function updateStreak(){
@@ -2762,7 +2784,7 @@ async function updateStreak(){
     }
     break;
   }
-  $("statStreak").textContent = streak;
+  animateNumber($("statStreak"), streak);
 }
 /* ---------- workout timer ---------- */
 let workoutTimerInterval = null;
@@ -2803,9 +2825,9 @@ async function handleFinishWorkout(){
   $("finishModalBody").innerHTML = `
     <div class="finish-stat-grid">
       <div class="finish-stat"><div class="finish-stat-num">${formatDuration(duration)}</div><div class="finish-stat-lbl">Duration</div></div>
-      <div class="finish-stat"><div class="finish-stat-num">${totalSets}</div><div class="finish-stat-lbl">Total sets</div></div>
-      <div class="finish-stat"><div class="finish-stat-num">${uniqueExercises}</div><div class="finish-stat-lbl">Exercises</div></div>
-      <div class="finish-stat"><div class="finish-stat-num">${Math.round(toDisplayWeight(totalVolume))}</div><div class="finish-stat-lbl">Volume (${unitLabel()})</div></div>
+      <div class="finish-stat"><div class="finish-stat-num" id="finishStatSets">0</div><div class="finish-stat-lbl">Total sets</div></div>
+      <div class="finish-stat"><div class="finish-stat-num" id="finishStatExercises">0</div><div class="finish-stat-lbl">Exercises</div></div>
+      <div class="finish-stat"><div class="finish-stat-num" id="finishStatVolume">0</div><div class="finish-stat-lbl">Volume (${unitLabel()})</div></div>
     </div>
     ${prs.length
       ? `<div class="finish-pr-title">🏆 New personal records</div>${prs.map(p=>`<div class="finish-pr-item">${escapeHTML(p.exercise)}<br>${escapeHTML(p.detail)}</div>`).join("")}`
@@ -2819,6 +2841,9 @@ async function handleFinishWorkout(){
       <button type="button" class="mood-btn" data-mood="5">😄</button>
     </div>
   `;
+  animateNumber($("finishStatSets"), totalSets);
+  animateNumber($("finishStatExercises"), uniqueExercises);
+  animateNumber($("finishStatVolume"), Math.round(toDisplayWeight(totalVolume)));
   $("moodRow").querySelectorAll('.mood-btn').forEach(btn=>{
     btn.addEventListener('click', ()=>{
       selectedMood = Number(btn.dataset.mood);
@@ -3033,7 +3058,15 @@ async function init(){
   function setActiveTab(id){
     document.querySelectorAll('.tab-btn').forEach(b=> b.classList.remove('active'));
     const btn = $(id);
-    if(btn) btn.classList.add('active');
+    if(btn){
+      btn.classList.add('active');
+      const icon = btn.querySelector('.tab-icon');
+      if(icon){
+        icon.classList.remove('tab-icon-bounce');
+        void icon.offsetWidth;
+        icon.classList.add('tab-icon-bounce');
+      }
+    }
   }
   function showAppPage(pageId){
     document.querySelectorAll('.app-page').forEach(p=> p.classList.remove('active'));
