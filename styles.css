@@ -73,7 +73,7 @@ header{padding:20px 20px 8px;}
   overflow: hidden;
   border-radius: 12px;
   flex-shrink: 0;
-  margin-bottom: -50px;
+  margin-bottom: -55px;
   margin-top: -50px;
   margin-left: auto;
   margin-right: auto;
@@ -85,6 +85,11 @@ header{padding:20px 20px 8px;}
 
 .view-all-link{font-size:11px; color:var(--moss); font-weight:500; text-decoration:none; cursor:pointer;}
 .stat-icon{font-size:15px; margin-bottom:2px;}
+.stat-icon{display:flex; justify-content:center; margin-bottom:4px;}
+.stat-icon svg{width:22px; height:22px; display:block;}
+.stat{color:var(--text); display:flex; flex-direction:column; align-items:center;}
+.stat .stat-icon{color:var(--moss);}
+.stat .amber-icon{color:var(--amber);}                                
 
 .focus-tip-card{background:var(--surface-2); border-radius:var(--radius-card); padding:12px; display:flex; align-items:center; gap:10px; margin:0 0 20px;}
 .ftc-thumb{width:36px; height:36px; border-radius:10px; background:var(--surface); flex-shrink:0;}
@@ -109,6 +114,12 @@ header{padding:20px 20px 8px;}
 .quick-access-tile{background:var(--surface); border:none; border-radius:var(--radius-button); padding:12px 4px; text-align:center; font-family:'Inter',sans-serif; font-size:10px; font-weight:500; color:var(--text); cursor:pointer;}
 .quick-access-tile.qa-dashed{background:transparent; border:1px dashed var(--border);}
 .qa-icon{display:block; font-size:18px; margin-bottom:4px;}
+.qa-icon svg, .tab-icon svg{width:20px; height:20px; display:block;}
+.qa-icon{color:var(--moss); display:flex; justify-content:center; margin-bottom:4px;}
+.tab-icon{color:var(--text-dim); display:flex; justify-content:center;}
+.tab-btn.active .tab-icon{color:var(--moss);}
+.quick-access-tile{display:flex; flex-direction:column; align-items:center; justify-content:center;}
+.tab-btn{display:flex; flex-direction:column; align-items:center; justify-content:center;}
 
 .bottom-tab-bar{position:fixed; left:0; right:0; bottom:0; display:flex; justify-content:space-around; background:var(--surface); border-top:1px solid var(--border); padding:8px 0 calc(8px + env(safe-area-inset-bottom)); z-index:60;}
 .tab-btn{background:none; border:none; display:flex; flex-direction:column; align-items:center; gap:2px; color:var(--text-dim); font-family:'Inter',sans-serif; font-size:9px; font-weight:600; cursor:pointer; padding:2px 10px;}
@@ -176,7 +187,40 @@ main{padding:24px 20px 0;}
 .new-workout-form button{background:var(--moss); color:var(--bg); border:none; border-radius:8px; padding:0 16px; font-weight:600; font-size:13px; cursor:pointer; flex-shrink:0;}
 .plan-btn{background:var(--surface); border:1px solid var(--border); color:var(--text); border-radius:10px; padding:12px 10px; font-family:'Oswald',sans-serif; font-size:13px; font-weight:600; letter-spacing:.02em; text-transform:uppercase; text-align:left; cursor:pointer;}
 .plan-btn.full-width{grid-column:1 / -1;}
+.plan-btn.full-width{
+  display:flex;
+  align-items:center;
+  justify-content:center;
+  gap:8px;
+  background:var(--moss);
+  border:none;
+  color:var(--bg);
+  font-weight:700;
+  text-transform:uppercase;
+  letter-spacing:0.03em;
+  border-radius:var(--radius-button);
+  padding:14px;
+}
 .plan-btn.active{background:rgba(138,154,91,0.16); border-color:var(--moss); color:var(--moss);}
+
+.wl-card{position:relative;}
+.wl-card-icon{color:var(--moss);}
+.wl-card-icon svg{width:22px; height:22px; display:block;}
+
+.wd-fab{position:fixed; right:20px; bottom:90px; width:52px; height:52px; border-radius:50%; background:var(--moss); color:var(--bg); border:none; display:flex; align-items:center; justify-content:center; box-shadow:var(--shadow-floating); cursor:pointer; z-index:210;}
+.wd-fab svg{width:22px; height:22px;}
+.wd-fab-play{bottom:152px; background:var(--amber);}
+
+.wd-exercise-row{display:flex; align-items:center; gap:12px; width:100%; background:var(--surface); border:none; border-radius:var(--radius-card); padding:12px 14px; margin-bottom:8px; cursor:pointer; text-align:left;}
+.wd-exercise-thumb{width:44px; height:44px; border-radius:var(--radius-image); background:var(--surface-2); flex-shrink:0; overflow:hidden;}
+.wd-exercise-thumb img{width:100%; height:100%; object-fit:contain;}
+.wd-exercise-name{flex:1; font-size:13px; font-weight:600; color:var(--text);}
+
+.wd-menu-sheet{display:none; position:absolute; top:56px; right:20px; background:var(--surface); border:1px solid var(--border); border-radius:var(--radius-card); padding:8px; z-index:220; min-width:190px; flex-direction:column; gap:6px; box-shadow:var(--shadow-floating);}
+.wd-menu-sheet.open{display:flex;}
+
+.wd-add-ex-grid{display:flex; flex-wrap:wrap; gap:10px; padding-top:10px;}
+.wd-add-ex-grid .exercise-picker-chip{width:88px;}
 
 .eim-tabs{display:flex; gap:4px; border-bottom:1px solid var(--border); margin-bottom:14px; overflow-x:auto;}
 .eim-tab{background:none; border:none; color:var(--text-dim); font-size:12px; font-weight:600; text-transform:uppercase; letter-spacing:.03em; padding:8px 10px; cursor:pointer; border-bottom:2px solid transparent; white-space:nowrap;}
@@ -505,6 +549,68 @@ button.primary:active{background:var(--moss-dim);}
 .exercise-picker-chip{flex-shrink:0; width:88px; text-align:center; cursor:pointer; background:none; border:none; padding:0;}
 .exercise-picker-chip img{width:72px; height:72px; border-radius:10px; background:var(--surface-2); border:1px solid var(--border); object-fit:contain; padding:4px; display:block; margin:0 auto;}
 .exercise-picker-chip .epc-label{display:block; font-size:10px; color:var(--text-dim); margin-top:4px; line-height:1.2;}
+
+#wdAddExMuscleRow{
+  display:flex;
+  flex-shrink:0;
+  gap:8px;
+  margin-bottom:20px;
+  overflow-x:auto;
+  overflow-y:visible;
+  padding:6px 0 14px;
+  height:auto;
+  min-height:36px;
+  -webkit-overflow-scrolling:touch;
+}
+#wdAddExMuscleRow .muscle-filter-chip{
+  background:var(--surface-2);
+  color:var(--text-dim);
+  border:none;
+  border-radius:16px;
+  padding:8px 14px;
+  font-size:12px;
+  font-weight:600;
+  white-space:nowrap;
+  flex-shrink:0;
+  line-height:1.2;
+}
+#wdAddExMuscleRow .muscle-filter-chip.active{
+  background:var(--moss);
+  color:var(--bg);
+}
+
+#wdAddExPicker{
+  margin-top: 10px;
+}
+
+#wdMuscleFilterRow{
+  display:flex;
+  flex-shrink:0;
+  gap:8px;
+  overflow-x:auto;
+  overflow-y:visible;
+  padding:6px 0 14px;
+  height:auto;
+  min-height:36px;
+  margin-bottom:14px;
+  -webkit-overflow-scrolling:touch;
+}
+#wdMuscleFilterRow .muscle-filter-chip{
+  background:var(--surface-2);
+  color:var(--text-dim);
+  border:none;
+  border-radius:16px;
+  padding:8px 14px;
+  font-size:12px;
+  font-weight:600;
+  white-space:nowrap;
+  flex-shrink:0;
+  line-height:1.2;
+}
+#wdMuscleFilterRow .muscle-filter-chip.active{
+  background:var(--moss);
+  color:var(--bg);
+}
 
 /* ---------- motion ---------- */
 .app-page.active{animation: pageFadeIn .25s ease;}

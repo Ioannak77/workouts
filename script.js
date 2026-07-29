@@ -2071,21 +2071,33 @@ async function renderPlanGrid(){
     const matchesSearch = !workoutLibrarySearch || w.label.toLowerCase().includes(workoutLibrarySearch.toLowerCase());
     return matchesFilter && matchesSearch;
   });
+  const dumbbellIconSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="9" width="3" height="6" rx="1"/><rect x="20" y="9" width="3" height="6" rx="1"/><line x1="4" y1="12" x2="20" y2="12"/><rect x="6" y="7" width="2.5" height="10" rx="1"/><rect x="15.5" y="7" width="2.5" height="10" rx="1"/></svg>`;
+  const warmupIconSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="13" r="8"/><path d="M12 9v4l3 2"/><path d="M9 3h6"/><path d="M17 6l1.5-1.5"/></svg>`;
+  const lowerBodyIconSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 3h2.2l.3 6 1 5-1.2 7H9l-.6-6.5L7 15l-1 7H4l.5-8.5L6 9l.5-6H9Z"/><path d="M13.5 3h2.2l1.3 6-.5 7 .5 6h-2l-1-6-1-4.5.5-8.5Z"/></svg>`;
+  const upperBodyIconSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a3 3 0 0 1 3-3h6a3 3 0 0 1 3 3v2l3 2v3l-3-1v6h-3v-6H9v6H6v-6l-3 1v-3l3-2Z"/></svg>`;
+  const fullBodyIconSvg = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="4" r="2"/><path d="M12 6v7M8 9l-3 2M16 9l3 2M9 13l-2 7M15 13l2 7"/></svg>`;
   for(const w of filtered){
     const active = session.plan.includes(w.key);
     const exercises = w.type === 'strength' ? await getWorkoutTemplate(w.key) : (w.exercises || []);
-    const card = document.createElement('button');
-    card.type = 'button';
+    const card = document.createElement('div');
     card.className = `wl-card ${active?'active':''}`;
+    card.setAttribute('role', 'button');
+    card.tabIndex = 0;
     card.innerHTML = `
-      <div class="wl-card-icon">${w.type==='checklist' ? '🧩' : '🏋️'}</div>
+      <div class="wl-card-icon">${
+        w.type === 'checklist' ? warmupIconSvg :
+        w.key === 'lower' ? lowerBodyIconSvg :
+        w.key === 'upper' ? upperBodyIconSvg :
+        w.key === 'full' ? fullBodyIconSvg :
+        dumbbellIconSvg
+      }</div>
       <div class="wl-card-body">
         <div class="wl-card-title">${escapeHTML(w.label)}</div>
         <div class="wl-card-sub">${escapeHTML(w.focus || '')}</div>
         <div class="wl-card-count">${exercises.length} exercise${exercises.length===1?'':'s'}</div>
       </div>
     `;
-    card.addEventListener('click', ()=>togglePlan(w.key));
+    card.addEventListener('click', ()=> openWorkoutDetail(w.key));
     grid.appendChild(card);
   }
   const addBtn = document.createElement("button");
@@ -2338,7 +2350,7 @@ async function renderPlanSection(){
   const grouped = groupByExercise(session.sets);
   const customList = await getCustomWorkouts();
   const orderedKeys = [...PLAN_ORDER, ...customList.map(c=>c.key)];
-  const activePlans = orderedKeys.filter(k=>session.plan.includes(k));
+  const activePlans = orderedKeys.filter(k=>editingGroups.has(k));
   const profile = await getProfile();
 
   if(activePlans.length === 0){
@@ -2541,6 +2553,171 @@ function makeSortable(container, itemSelector){
     document.addEventListener('pointermove', onMove);
     document.addEventListener('pointerup', onUp);
   });
+}
+
+let workoutDetailKey = null;
+let workoutDetailMuscleFilter = null;
+
+async function openWorkoutDetail(key){
+  workoutDetailKey = key;
+  workoutDetailMuscleFilter = null;
+  $("workoutDetailPage").classList.add('open');
+  $("wdMenuSheet").classList.remove('open');
+  await renderWorkoutDetail();
+}
+function closeWorkoutDetail(){
+  $("workoutDetailPage").classList.remove('open');
+  $("wdMenuSheet").classList.remove('open');
+  workoutDetailKey = null;
+}
+
+async function renderWorkoutDetail(){
+  const key = workoutDetailKey;
+  const def = await getPlanDef(key);
+  if(!def){ closeWorkoutDetail(); return; }
+  $("wdTitle").textContent = def.label;
+
+  const exercises = def.type === 'strength'
+    ? await getWorkoutTemplate(key)
+    : (def.exercises || []).map(e=> typeof e === 'string' ? { name: e } : e);
+
+  const presentMuscles = new Set();
+  exercises.forEach(ex=>{
+    const d = findExerciseData(ex.name);
+    if(d && d.muscle) presentMuscles.add(d.muscle);
+  });
+
+  const filterRow = $("wdMuscleFilterRow");
+  filterRow.innerHTML = '';
+  if(presentMuscles.size > 1){
+    const allChip = document.createElement('button');
+    allChip.type = 'button';
+    allChip.className = `muscle-filter-chip ${!workoutDetailMuscleFilter ? 'active' : ''}`;
+    allChip.textContent = 'All';
+    allChip.addEventListener('click', async ()=>{ workoutDetailMuscleFilter = null; await renderWorkoutDetail(); });
+    filterRow.appendChild(allChip);
+    MUSCLE_GROUP_OPTIONS.filter(m=>presentMuscles.has(m.key)).forEach(m=>{
+      const chip = document.createElement('button');
+      chip.type = 'button';
+      chip.className = `muscle-filter-chip ${workoutDetailMuscleFilter===m.key ? 'active' : ''}`;
+      chip.textContent = m.label;
+      chip.addEventListener('click', async ()=>{ workoutDetailMuscleFilter = m.key; await renderWorkoutDetail(); });
+      filterRow.appendChild(chip);
+    });
+  }
+
+  const list = $("wdExerciseList");
+  list.innerHTML = '';
+  const filteredExercises = exercises.filter(ex=>{
+    if(!workoutDetailMuscleFilter) return true;
+    const d = findExerciseData(ex.name);
+    return d && d.muscle === workoutDetailMuscleFilter;
+  });
+  if(!filteredExercises.length){
+    list.innerHTML = `<div class="eim-empty">No exercises yet — tap + to add some.</div>`;
+    return;
+  }
+  filteredExercises.forEach(ex=>{
+    const found = findExerciseImage(ex.name);
+    const folder = found ? (IMAGE_FOLDERS[found.libKey] || found.libKey) : '';
+    const src = found ? `${EXERCISE_IMAGE_BASE}${folder}/${found.img}` : '';
+    const row = document.createElement('button');
+    row.type = 'button';
+    row.className = 'wd-exercise-row';
+    row.innerHTML = `
+      <div class="wd-exercise-thumb">${src ? `<img src="${src}" alt="">` : ''}</div>
+      <div class="wd-exercise-name">${escapeHTML(ex.name)}</div>
+      <span class="pmi-arrow">›</span>
+    `;
+    row.addEventListener('click', ()=> openExerciseImageModal(src, ex.name));
+    list.appendChild(row);
+  });
+}
+
+let wdAddExSearch = '';
+let wdAddExMuscleFilter = null;
+
+async function openWdAddExerciseScreen(){
+  wdAddExSearch = '';
+  wdAddExMuscleFilter = null;
+  $("wdAddExSearchInput").value = '';
+  $("wdAddExerciseScreen").classList.add('open');
+  await renderWdAddExercisePicker();
+}
+function closeWdAddExerciseScreen(){
+  $("wdAddExerciseScreen").classList.remove('open');
+}
+
+async function renderWdAddExercisePicker(){
+  const profile = await getProfile();
+  const available = getAvailableExercises(profile.equipment);
+
+  const presentMuscles = new Set();
+  available.forEach(ex=>{
+    const d = findExerciseData(ex.name);
+    if(d && d.muscle) presentMuscles.add(d.muscle);
+  });
+
+  const filterRow = $("wdAddExMuscleRow");
+  filterRow.innerHTML = '';
+  const allChip = document.createElement('button');
+  allChip.type = 'button';
+  allChip.className = `muscle-filter-chip ${!wdAddExMuscleFilter ? 'active' : ''}`;
+  allChip.textContent = 'All';
+  allChip.addEventListener('click', async ()=>{ wdAddExMuscleFilter = null; await renderWdAddExercisePicker(); });
+  filterRow.appendChild(allChip);
+  MUSCLE_GROUP_OPTIONS.filter(m=>presentMuscles.has(m.key)).forEach(m=>{
+    const chip = document.createElement('button');
+    chip.type = 'button';
+    chip.className = `muscle-filter-chip ${wdAddExMuscleFilter===m.key ? 'active' : ''}`;
+    chip.textContent = m.label;
+    chip.addEventListener('click', async ()=>{ wdAddExMuscleFilter = m.key; await renderWdAddExercisePicker(); });
+    filterRow.appendChild(chip);
+  });
+
+  const grid = $("wdAddExPicker");
+  grid.innerHTML = '';
+  available
+    .filter(ex=>{
+      if(wdAddExMuscleFilter){
+        const d = findExerciseData(ex.name);
+        if(!d || d.muscle !== wdAddExMuscleFilter) return false;
+      }
+      if(wdAddExSearch) return fuzzyScore(wdAddExSearch, ex.name) >= 0;
+      return true;
+    })
+    .forEach(ex=>{
+      const found = findExerciseImage(ex.name);
+      const folder = found ? (IMAGE_FOLDERS[found.libKey] || found.libKey) : '';
+      const src = found ? `${EXERCISE_IMAGE_BASE}${folder}/${found.img}` : '';
+      const chip = document.createElement('button');
+      chip.type = 'button';
+      chip.className = 'exercise-picker-chip';
+      chip.innerHTML = `<img src="${src}" alt="${escapeHTML(ex.name)}"><span class="epc-label">${escapeHTML(ex.name)}</span>`;
+      chip.addEventListener('click', async ()=>{
+        const key = workoutDetailKey;
+        const existing = await getWorkoutTemplate(key);
+        if(existing.some(e=> e.name === ex.name)){
+          showToast(`${ex.name} is already in this workout`);
+          return;
+        }
+        existing.push({ name: ex.name, target: '3 × 12', weight: null });
+        await saveWorkoutTemplate(key, existing);
+        showToast(`${ex.name} added`);
+      });
+      grid.appendChild(chip);
+    });
+}
+
+async function jumpToWorkoutEditor(key){
+  closeWorkoutDetail();
+  editingGroups.add(key);
+  document.querySelectorAll('.tab-btn').forEach(b=> b.classList.remove('active'));
+  $("tabWorkoutsBtn").classList.add('active');
+  document.querySelectorAll('.app-page').forEach(p=> p.classList.remove('active'));
+  $("workoutsPage").classList.add('active');
+  await renderAll();
+  $("planSection").scrollIntoView({ behavior:'smooth', block:'start' });
 }
 
 function buildTemplateEditor(key, exercises, equipmentKeys){
@@ -2989,6 +3166,51 @@ async function init(){
   $("compareModal").addEventListener('click', (e)=>{ if(e.target.id === 'compareModal') $("compareModal").classList.remove('open'); });
   $("compareWeekA").addEventListener('change', renderCompareResult);
   $("compareWeekB").addEventListener('change', renderCompareResult);
+$("wdBackBtn").addEventListener('click', closeWorkoutDetail);
+  $("wdMenuBtn").addEventListener('click', ()=>{
+    $("wdMenuSheet").classList.toggle('open');
+  });
+  $("wdStartBtn").addEventListener('click', async ()=>{
+    $("wdMenuSheet").classList.remove('open');
+    const key = workoutDetailKey;
+    const session = await getSession(todayKey);
+    if(!session.plan.includes(key)){
+      await updateSession(todayKey, (s)=>{ s.plan.push(key); });
+    }
+    closeWorkoutDetail();
+    document.querySelectorAll('.tab-btn').forEach(b=> b.classList.remove('active'));
+    $("tabHomeBtn").classList.add('active');
+    document.querySelectorAll('.app-page').forEach(p=> p.classList.remove('active'));
+    $("homePage").classList.add('active');
+    await openWorkoutSession();
+  });
+  $("wdEditBtn").addEventListener('click', async ()=>{
+    $("wdMenuSheet").classList.remove('open');
+    await jumpToWorkoutEditor(workoutDetailKey);
+  });
+  $("wdPlayFabBtn").addEventListener('click', ()=> $("wdStartBtn").click());
+  $("wdAddExerciseBtn").addEventListener('click', openWdAddExerciseScreen);
+  $("wdAddExBackBtn").addEventListener('click', closeWdAddExerciseScreen);
+  $("wdAddExSearchInput").addEventListener('input', async (e)=>{
+    wdAddExSearch = e.target.value;
+    await renderWdAddExercisePicker();
+  });
+  $("wdDeleteBtn").addEventListener('click', async ()=>{
+    if($("wdDeleteBtn").dataset.armed !== '1'){
+      $("wdDeleteBtn").dataset.armed = '1';
+      $("wdDeleteBtn").textContent = 'Tap again to confirm';
+      setTimeout(()=>{
+        if($("wdDeleteBtn").dataset.armed === '1'){
+          $("wdDeleteBtn").dataset.armed = '0';
+          $("wdDeleteBtn").textContent = 'Delete workout';
+        }
+      }, 4000);
+      return;
+    }
+    const key = workoutDetailKey;
+    closeWorkoutDetail();
+    await deleteWorkout(key);
+  });
 
   $("wssBackBtn").addEventListener('click', closeWorkoutSession);
 

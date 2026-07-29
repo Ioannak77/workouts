@@ -214,6 +214,47 @@
   <div id="loggingSetHistory"></div>
 </div>
 
+<div class="fullscreen-overlay" id="workoutDetailPage">
+  <div class="wss-topbar">
+    <button type="button" class="wss-back-btn" id="wdBackBtn" aria-label="Back">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 19l-7-7 7-7"/></svg>
+    </button>
+    <div class="wss-title" id="wdTitle">Workout</div>
+    <button type="button" class="wss-back-btn" id="wdMenuBtn" aria-label="More options">
+      <svg viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="1.6"/><circle cx="12" cy="12" r="1.6"/><circle cx="19" cy="12" r="1.6"/></svg>
+    </button>
+  </div>
+
+  <div class="wd-menu-sheet" id="wdMenuSheet">
+    <button type="button" class="settings-row" id="wdStartBtn">Start this workout</button>
+    <button type="button" class="settings-row" id="wdEditBtn">Edit exercises</button>
+    <button type="button" class="settings-row settings-row-danger" id="wdDeleteBtn">Delete workout</button>
+  </div>
+
+  <div class="muscle-filter-row" id="wdMuscleFilterRow"></div>
+<div id="wdExerciseList"></div>
+
+<button type="button" class="wd-fab wd-fab-play" id="wdPlayFabBtn" aria-label="Start this workout">
+  <svg viewBox="0 0 24 24" fill="currentColor"><path d="M7 4v16l14-8z"/></svg>
+</button>
+<button type="button" class="wd-fab" id="wdAddExerciseBtn" aria-label="Add exercise">
+  <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>
+</button>
+</div>
+
+<div class="fullscreen-overlay" id="wdAddExerciseScreen" style="z-index:210;">
+  <div class="wss-topbar">
+    <button type="button" class="wss-back-btn" id="wdAddExBackBtn" aria-label="Close">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M18 6L6 18M6 6l12 12"/></svg>
+    </button>
+    <div class="wss-title">Add exercise</div>
+    <div style="width:34px;"></div>
+  </div>
+  <input type="text" id="wdAddExSearchInput" class="wl-search-input" placeholder="Search exercises">
+  <div class="muscle-filter-row" id="wdAddExMuscleRow"></div>
+  <div class="wd-add-ex-grid" id="wdAddExPicker"></div>
+</div>
+
 <div class="fullscreen-overlay" id="restScreen">
   <div class="wss-topbar">
     <button type="button" class="wss-back-btn" id="restScreenSkipX" aria-label="Skip rest">✕</button>
@@ -257,18 +298,36 @@
 
     <div class="section-title"><span>Today's stats</span><a href="javascript:void(0)" class="view-all-link" id="viewAllStatsLink">View all</a></div>
     <div class="stats">
-      <div class="stat"><div class="stat-icon">🏋️</div><div class="num" id="statSets">0</div><div class="lbl">Sets today</div></div>
-      <div class="stat"><div class="stat-icon">📊</div><div class="num" id="statVolume">0</div><div class="lbl" id="statVolumeLabel">Volume (kg)</div></div>
-      <div class="stat"><div class="stat-icon">🔥</div><div class="num" id="statStreak">0</div><div class="lbl">Day streak</div></div>
-    </div>
+  <div class="stat">
+    <div class="stat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="9" width="3" height="6" rx="1"/><rect x="20" y="9" width="3" height="6" rx="1"/><line x1="4" y1="12" x2="20" y2="12"/><rect x="6" y="7" width="2.5" height="10" rx="1"/><rect x="15.5" y="7" width="2.5" height="10" rx="1"/></svg></div>
+    <div class="num" id="statSets">0</div><div class="lbl">Sets today</div>
+  </div>
+  <div class="stat">
+    <div class="stat-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V14M9 20V10M14 20V13M19 20V6"/></svg></div>
+    <div class="num" id="statVolume">0</div><div class="lbl" id="statVolumeLabel">Volume (kg)</div>
+  </div>
+  <div class="stat">
+    <div class="stat-icon amber-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 2c1 3-2 4-2 7a4 4 0 0 0 8 0c0-1-.5-2-1-2 .5 2-1 3-1 3 .5-2-1-4-2-5 0 2-2 3-2 5a3 3 0 0 0 6 0c0-4-3-5-6-8Z"/></svg></div>
+    <div class="num" id="statStreak">0</div><div class="lbl">Day streak</div>
+  </div>
+</div>
 
     <div id="focusTipCard" class="focus-tip-card"></div>
 
     <div class="section-title">Quick access</div>
     <div class="quick-access-grid">
-      <button type="button" class="quick-access-tile" id="qaWorkoutsBtn"><span class="qa-icon">🏋️</span>Workouts</button>
-      <button type="button" class="quick-access-tile" id="qaLibraryBtn"><span class="qa-icon">📚</span>Exercise library</button>
-      <button type="button" class="quick-access-tile qa-dashed" id="qaNewWorkoutBtn"><span class="qa-icon">＋</span>New workout</button>
+      <button type="button" class="quick-access-tile" id="qaWorkoutsBtn">
+  <span class="qa-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="9" width="3" height="6" rx="1"/><rect x="20" y="9" width="3" height="6" rx="1"/><line x1="4" y1="12" x2="20" y2="12"/><rect x="6" y="7" width="2.5" height="10" rx="1"/><rect x="15.5" y="7" width="2.5" height="10" rx="1"/></svg></span>
+  Workouts
+</button>
+<button type="button" class="quick-access-tile" id="qaLibraryBtn">
+  <span class="qa-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 6c-1.8-1.3-4-2-6.5-2-1 0-2 .1-2.5.3v13c.5-.2 1.5-.3 2.5-.3 2.5 0 4.7.7 6.5 2 1.8-1.3 4-2 6.5-2 1 0 2 .1 2.5.3v-13c-.5-.2-1.5-.3-2.5-.3-2.5 0-4.7.7-6.5 2Z"/><path d="M12 6v13"/></svg></span>
+  Exercise library
+</button>
+<button type="button" class="quick-access-tile qa-dashed" id="qaNewWorkoutBtn">
+  <span class="qa-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14M5 12h14"/></svg></span>
+  New workout
+</button>
     </div>
   </main>
 </div>
@@ -336,10 +395,22 @@
 </div>
 
 <nav class="bottom-tab-bar" id="bottomTabBar">
-  <button type="button" class="tab-btn active" id="tabHomeBtn"><span class="tab-icon">🏠</span><span class="tab-label">Home</span></button>
-  <button type="button" class="tab-btn" id="tabWorkoutsBtn"><span class="tab-icon">🏋️</span><span class="tab-label">Workouts</span></button>
-  <button type="button" class="tab-btn" id="tabProgressBtn"><span class="tab-icon">📈</span><span class="tab-label">Progress</span></button>
-  <button type="button" class="tab-btn" id="tabYouBtn"><span class="tab-icon">🙂</span><span class="tab-label">You</span></button>
+  <button type="button" class="tab-btn active" id="tabHomeBtn">
+    <span class="tab-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 11.5 12 4l8 7.5"/><path d="M6 10v9a1 1 0 0 0 1 1h3v-5h4v5h3a1 1 0 0 0 1-1v-9"/></svg></span>
+    <span class="tab-label">Home</span>
+  </button>
+  <button type="button" class="tab-btn" id="tabWorkoutsBtn">
+    <span class="tab-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><rect x="1" y="9" width="3" height="6" rx="1"/><rect x="20" y="9" width="3" height="6" rx="1"/><line x1="4" y1="12" x2="20" y2="12"/><rect x="6" y="7" width="2.5" height="10" rx="1"/><rect x="15.5" y="7" width="2.5" height="10" rx="1"/></svg></span>
+    <span class="tab-label">Workouts</span>
+  </button>
+  <button type="button" class="tab-btn" id="tabProgressBtn">
+    <span class="tab-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 20V14M9 20V10M14 20V12M19 20V6"/><path d="M4 13l5-4 5 2 5-6"/></svg></span>
+    <span class="tab-label">Progress</span>
+  </button>
+  <button type="button" class="tab-btn" id="tabYouBtn">
+    <span class="tab-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="8" r="3.2"/><path d="M5 20c0-4 3.2-6.5 7-6.5S19 16 19 20"/></svg></span>
+    <span class="tab-label">You</span>
+  </button>
 </nav>
 
 <datalist id="exerciseOptions"></datalist>
