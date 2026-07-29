@@ -838,15 +838,18 @@ function openExerciseImageModal(src, name){
 
   const data = findExerciseData(name);
   const muscleLabel = data && data.muscle ? muscleLabelFor(data.muscle) : null;
+  $("exerciseImageModalTags").innerHTML = muscleLabel
+    ? `<span class="eim-muscle-tag">${escapeHTML(muscleLabel)}</span>`
+    : '';
   const body = $("exerciseImageModalBody");
   body.innerHTML = `
     <div class="eim-tabs">
-      <button type="button" class="eim-tab active" data-tab="howto">How to</button>
-      <button type="button" class="eim-tab" data-tab="muscles">Muscles</button>
-      <button type="button" class="eim-tab" data-tab="mistakes">Mistakes</button>
-      <button type="button" class="eim-tab" data-tab="tips">Tips</button>
+      <button type="button" class="eim-tab active" data-tab="howto"><span class="eim-tab-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M4 5.5A2.5 2.5 0 0 1 6.5 3H12v18H6.5A2.5 2.5 0 0 1 4 18.5v-13Z"/><path d="M20 5.5A2.5 2.5 0 0 0 17.5 3H12v18h5.5a2.5 2.5 0 0 0 2.5-2.5v-13Z"/></svg></span><span>How to</span></button>
+      <button type="button" class="eim-tab" data-tab="muscles"><span class="eim-tab-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M6 8a3 3 0 0 1 3-3h6a3 3 0 0 1 3 3v2l3 2v3l-3-1v6h-3v-6H9v6H6v-6l-3 1v-3l3-2Z"/></svg></span><span>Muscles</span></button>
+      <button type="button" class="eim-tab" data-tab="mistakes"><span class="eim-tab-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3 2 20h20L12 3Z"/><path d="M12 10v4"/><path d="M12 17h.01"/></svg></span><span>Mistakes</span></button>
+      <button type="button" class="eim-tab" data-tab="tips"><span class="eim-tab-icon"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round"><path d="M9 18h6"/><path d="M10 21h4"/><path d="M12 3a6 6 0 0 0-3.6 10.8c.5.4.8 1 .8 1.7V16h5.6v-.5c0-.7.3-1.3.8-1.7A6 6 0 0 0 12 3Z"/></svg></span><span>Tips</span></button>
     </div>
-    <div class="eim-panel" data-panel="howto">${eimListItems(data && data.steps)}</div>
+    <div class="eim-panel" data-panel="howto">${eimListHTML('Step-by-step', data && data.steps)}</div>
     <div class="eim-panel" data-panel="muscles" style="display:none;">${muscleLabel ? `<div class="eim-muscle-badge">${escapeHTML(muscleLabel)}</div>` : `<div class="eim-empty">Not tagged yet.</div>`}</div>
     <div class="eim-panel" data-panel="mistakes" style="display:none;">${eimListItems(data && data.mistakes)}</div>
     <div class="eim-panel" data-panel="tips" style="display:none;">${eimListItems(data && data.tips)}</div>
@@ -2563,19 +2566,50 @@ async function openWorkoutDetail(key){
   workoutDetailMuscleFilter = null;
   $("workoutDetailPage").classList.add('open');
   $("wdMenuSheet").classList.remove('open');
+  closeWdRenameForm();
   await renderWorkoutDetail();
 }
 function closeWorkoutDetail(){
   $("workoutDetailPage").classList.remove('open');
   $("wdMenuSheet").classList.remove('open');
+  $("wdEditExercisesScreen").classList.remove('open');
+  $("wdAddExerciseScreen").classList.remove('open');
+  closeWdRenameForm();
   workoutDetailKey = null;
+}
+
+function openWdRenameForm(){
+  $("wdTitle").style.display = 'none';
+  $("wdRenameInput").value = $("wdTitle").textContent;
+  $("wdRenameForm").style.display = 'flex';
+  $("wdRenameInput").focus();
+}
+function closeWdRenameForm(){
+  $("wdTitle").style.display = '';
+  $("wdRenameForm").style.display = 'none';
+}
+
+async function startWorkoutFromDetail(){
+  const key = workoutDetailKey;
+  const session = await getSession(todayKey);
+  if(!session.plan.includes(key)){
+    await updateSession(todayKey, (s)=>{ s.plan.push(key); });
+  }
+  closeWorkoutDetail();
+  document.querySelectorAll('.tab-btn').forEach(b=> b.classList.remove('active'));
+  $("tabHomeBtn").classList.add('active');
+  document.querySelectorAll('.app-page').forEach(p=> p.classList.remove('active'));
+  $("homePage").classList.add('active');
+  await openWorkoutSession();
 }
 
 async function renderWorkoutDetail(){
   const key = workoutDetailKey;
   const def = await getPlanDef(key);
   if(!def){ closeWorkoutDetail(); return; }
+  closeWdRenameForm();
   $("wdTitle").textContent = def.label;
+  $("wdRenameBtn").style.display = key.startsWith('custom-') ? '' : 'none';
 
   const exercises = def.type === 'strength'
     ? await getWorkoutTemplate(key)
@@ -2634,6 +2668,142 @@ async function renderWorkoutDetail(){
   });
 }
 
+let wdEditExReorderMode = false;
+
+async function renderWdEditExList(){
+  const key = workoutDetailKey;
+  const def = await getPlanDef(key);
+  if(!def) return;
+  const isStrength = def.type === 'strength';
+  const isCustom = key.startsWith('custom-');
+  const exercises = isStrength
+    ? await getWorkoutTemplate(key)
+    : (def.exercises || []).map(e=> typeof e === 'string' ? { name: e } : e);
+
+  $("wdEditExNameValue").textContent = def.label;
+  $("wdEditExRenameBtn").style.display = isCustom ? '' : 'none';
+  $("wdEditExCount").textContent = `Exercises (${exercises.length})`;
+  $("wdEditExOrderBtn").style.display = (isStrength && exercises.length > 1) ? '' : 'none';
+  $("wdEditExOrderBtn").textContent = wdEditExReorderMode ? 'Done' : 'Edit order';
+
+  const list = $("wdEditExList");
+  list.innerHTML = '';
+  if(!exercises.length){
+    list.innerHTML = `<div class="eim-empty">No exercises yet — tap + Add exercise below.</div>`;
+  }
+  exercises.forEach((ex, i)=>{
+    const found = findExerciseImage(ex.name);
+    const folder = found ? (IMAGE_FOLDERS[found.libKey] || found.libKey) : '';
+    const src = found ? `${EXERCISE_IMAGE_BASE}${folder}/${found.img}` : '';
+    const data = findExerciseData(ex.name);
+    const rest = ex.rest != null ? ex.rest : (data && data.rest != null ? data.rest : 60);
+    const target = ex.target || '3 × 12';
+
+    const row = document.createElement('div');
+    row.className = 'wd-editex-row';
+    row.dataset.name = ex.name;
+    row.innerHTML = `
+      ${(isStrength && wdEditExReorderMode)
+        ? `<div class="wd-editex-drag-handle" aria-label="Drag to reorder">⠿</div>`
+        : `<div class="wd-editex-num">${i+1}</div>`}
+      <div class="wd-editex-thumb">${src ? `<img src="${src}" alt="">` : ''}</div>
+      <div class="wd-editex-name">
+        <div class="wd-editex-title">${escapeHTML(ex.name)}</div>
+        <div class="wd-editex-target">${escapeHTML(target)} • Rest ${rest}s</div>
+      </div>
+      ${isStrength ? `<button type="button" class="wd-editex-remove" aria-label="Remove">✕</button>` : ``}
+    `;
+    if(isStrength){
+      row.querySelector('.wd-editex-remove').addEventListener('click', async ()=>{
+        const current = await getWorkoutTemplate(key);
+        await saveWorkoutTemplate(key, current.filter(e=> e.name !== ex.name));
+        showToast(`${ex.name} removed`);
+        await renderWdEditExList();
+      });
+      if(wdEditExReorderMode){
+        attachWdEditExDragHandle(row, key);
+      }
+    }
+    list.appendChild(row);
+  });
+  $("wdEditAddExerciseBtn").style.display = isStrength ? '' : 'none';
+}
+
+function attachWdEditExDragHandle(row, key){
+  const handle = row.querySelector('.wd-editex-drag-handle');
+  const list = row.parentElement;
+
+  handle.addEventListener('pointerdown', (e)=>{
+    e.preventDefault();
+    handle.setPointerCapture(e.pointerId);
+    let startY = e.clientY;
+    row.classList.add('dragging');
+    row.style.position = 'relative';
+    row.style.touchAction = 'none';
+    list.style.touchAction = 'none';
+
+    const onMove = (ev)=>{
+      const deltaY = ev.clientY - startY;
+      row.style.transform = `translateY(${deltaY}px)`;
+
+      const myRect = row.getBoundingClientRect();
+      const myCenter = myRect.top + myRect.height / 2;
+      Array.from(list.children).forEach(sib=>{
+        if(sib === row) return;
+        const rect = sib.getBoundingClientRect();
+        const sibCenter = rect.top + rect.height / 2;
+        if(Math.abs(myCenter - sibCenter) < rect.height / 2){
+          const rowIndex = Array.from(list.children).indexOf(row);
+          const sibIndex = Array.from(list.children).indexOf(sib);
+          if(rowIndex < sibIndex) list.insertBefore(row, sib.nextSibling);
+          else list.insertBefore(row, sib);
+          startY = ev.clientY;
+          row.style.transform = '';
+        }
+      });
+    };
+    const finish = async ()=>{
+      document.removeEventListener('pointermove', onMove);
+      document.removeEventListener('pointerup', finish);
+      document.removeEventListener('pointercancel', finish);
+      row.classList.remove('dragging');
+      row.style.transform = '';
+      list.style.touchAction = '';
+      const order = Array.from(list.children).map(r=> r.dataset.name).filter(Boolean);
+      const current = await getWorkoutTemplate(key);
+      const reordered = order.map(name=> current.find(e=> e.name === name)).filter(Boolean);
+      await saveWorkoutTemplate(key, reordered);
+      await renderWdEditExList();
+    };
+    document.addEventListener('pointermove', onMove);
+    document.addEventListener('pointerup', finish);
+    document.addEventListener('pointercancel', finish);
+  });
+}
+
+function openWdEditExNameForm(){
+  $("wdEditExNameValue").style.display = 'none';
+  $("wdEditExRenameBtn").style.display = 'none';
+  $("wdEditExNameInput").value = $("wdEditExNameValue").textContent;
+  $("wdEditExNameForm").style.display = 'flex';
+  $("wdEditExNameInput").focus();
+}
+function closeWdEditExNameForm(){
+  $("wdEditExNameValue").style.display = '';
+  $("wdEditExNameForm").style.display = 'none';
+}
+
+async function openWdEditExercisesScreen(){
+  wdEditExReorderMode = false;
+  closeWdEditExNameForm();
+  $("wdEditExercisesScreen").classList.add('open');
+  await renderWdEditExList();
+}
+async function closeWdEditExercisesScreen(){
+  $("wdEditExercisesScreen").classList.remove('open');
+  await renderWorkoutDetail();
+}
+
 let wdAddExSearch = '';
 let wdAddExMuscleFilter = null;
 
@@ -2644,8 +2814,9 @@ async function openWdAddExerciseScreen(){
   $("wdAddExerciseScreen").classList.add('open');
   await renderWdAddExercisePicker();
 }
-function closeWdAddExerciseScreen(){
+async function closeWdAddExerciseScreen(){
   $("wdAddExerciseScreen").classList.remove('open');
+  await renderWdEditExList();
 }
 
 async function renderWdAddExercisePicker(){
@@ -3170,26 +3341,45 @@ $("wdBackBtn").addEventListener('click', closeWorkoutDetail);
   $("wdMenuBtn").addEventListener('click', ()=>{
     $("wdMenuSheet").classList.toggle('open');
   });
-  $("wdStartBtn").addEventListener('click', async ()=>{
-    $("wdMenuSheet").classList.remove('open');
-    const key = workoutDetailKey;
-    const session = await getSession(todayKey);
-    if(!session.plan.includes(key)){
-      await updateSession(todayKey, (s)=>{ s.plan.push(key); });
+  document.addEventListener('click', (e)=>{
+    const sheet = $("wdMenuSheet");
+    if(sheet.classList.contains('open') && !sheet.contains(e.target) && e.target !== $("wdMenuBtn") && !$("wdMenuBtn").contains(e.target)){
+      sheet.classList.remove('open');
     }
-    closeWorkoutDetail();
-    document.querySelectorAll('.tab-btn').forEach(b=> b.classList.remove('active'));
-    $("tabHomeBtn").classList.add('active');
-    document.querySelectorAll('.app-page').forEach(p=> p.classList.remove('active'));
-    $("homePage").classList.add('active');
-    await openWorkoutSession();
   });
-  $("wdEditBtn").addEventListener('click', async ()=>{
+  $("wdRenameBtn").addEventListener('click', ()=>{
     $("wdMenuSheet").classList.remove('open');
-    await jumpToWorkoutEditor(workoutDetailKey);
+    openWdRenameForm();
   });
-  $("wdPlayFabBtn").addEventListener('click', ()=> $("wdStartBtn").click());
-  $("wdAddExerciseBtn").addEventListener('click', openWdAddExerciseScreen);
+  $("wdRenameSaveBtn").addEventListener('click', async ()=>{
+    const newLabel = $("wdRenameInput").value.trim();
+    if(!newLabel){ showToast("Name can't be empty"); return; }
+    await renameCustomWorkout(workoutDetailKey, newLabel);
+    closeWdRenameForm();
+    await renderWorkoutDetail();
+    await renderPlanGrid();
+    showToast("Workout renamed");
+  });
+  $("wdRenameCancelBtn").addEventListener('click', closeWdRenameForm);
+  $("wdPlayFabBtn").addEventListener('click', startWorkoutFromDetail);
+  $("wdAddExerciseBtn").addEventListener('click', openWdEditExercisesScreen);
+  $("wdEditExBackBtn").addEventListener('click', closeWdEditExercisesScreen);
+  $("wdEditAddExerciseBtn").addEventListener('click', openWdAddExerciseScreen);
+  $("wdEditExOrderBtn").addEventListener('click', async ()=>{
+    wdEditExReorderMode = !wdEditExReorderMode;
+    await renderWdEditExList();
+  });
+  $("wdEditExRenameBtn").addEventListener('click', openWdEditExNameForm);
+  $("wdEditExNameCancelBtn").addEventListener('click', closeWdEditExNameForm);
+  $("wdEditExNameSaveBtn").addEventListener('click', async ()=>{
+    const newLabel = $("wdEditExNameInput").value.trim();
+    if(!newLabel){ showToast("Name can't be empty"); return; }
+    await renameCustomWorkout(workoutDetailKey, newLabel);
+    closeWdEditExNameForm();
+    await renderWdEditExList();
+    await renderPlanGrid();
+    showToast("Workout renamed");
+  });
   $("wdAddExBackBtn").addEventListener('click', closeWdAddExerciseScreen);
   $("wdAddExSearchInput").addEventListener('input', async (e)=>{
     wdAddExSearch = e.target.value;
