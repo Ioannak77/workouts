@@ -34,11 +34,20 @@ let userRestSeconds = 30;
 let userTimerAlert = 'sound';
 let workoutSessionExerciseList = [];
 let loggingScreenExercise = null;
+let loggingScreenPosition = 1;
+let loggingScreenTotal = 1;
 let loggingScreenSetIndex = 1;
 let loggingScreenReps = 12;
 let loggingScreenWeight = 0;
+let loggingScreenRestOverride = null;
+let completeExWeight = 0;
+let completeExReps = 12;
+let completeExSets = 3;
 let selectedMood = null;
 let wssTimerInterval = null;
+let exerciseLibraryFilter = "all";
+let exerciseLibrarySearch = "";
+let libraryPendingExercise = null;
 
 /* ---------- data loaded from data/exercises.json ---------- */
 let EQUIPMENT_OPTIONS = [];
@@ -991,8 +1000,8 @@ function stopWssTimer(){ clearInterval(wssTimerInterval); wssTimerInterval = nul
 
 async function openWorkoutSession(){
   let session = await getSession(todayKey);
-  if(!session.startedAt){
-    await updateSession(todayKey, (s)=>{ s.startedAt = Date.now(); s.finishedAt = null; });
+  if(!session.startedAt || session.finishedAt){
+    await updateSession(todayKey, (s)=>{ s.startedAt = Date.now(); s.finishedAt = null; s.completed = []; });
     session = await getSession(todayKey);
   }
   workoutSessionExerciseList = await buildFlattenedExerciseList(session);
@@ -1025,6 +1034,8 @@ async function renderWorkoutSessionOverview(){
   $("wssTitle").textContent = progress ? progress.label : 'Workout';
   $("wssProgressText").textContent = `${Math.min(doneCount+1,total)} / ${total} exercises`;
   $("wssProgressFill").style.width = `${total ? Math.round((doneCount/total)*100) : 0}%`;
+  loggingScreenPosition = Math.min(doneCount+1, total);
+  loggingScreenTotal = total;
 
   if(!remaining.length){
     closeWorkoutSession();
@@ -1061,12 +1072,19 @@ async function renderWorkoutSessionOverview(){
       s.completed = s.completed || [];
       if(!s.completed.includes(current.name)) s.completed.push(current.name);
     });
+    const session = await getSession(todayKey);
+    const completed = session.completed || [];
+    const remaining = workoutSessionExerciseList.filter(e2=> !completed.includes(e2.name));
     await renderWorkoutSessionOverview();
+    if(remaining.length){
+      await openLoggingScreen(remaining[0]);
+    }
   };
 }
 
 async function openLoggingScreen(ex){
   loggingScreenExercise = ex;
+  loggingScreenRestOverride = null;
   const repGoal = parseRepGoal(ex.target) || 12;
   const session = await getSession(todayKey);
   const loggedCount = session.sets.filter(s=>s.exercise===ex.name).length;
@@ -1074,10 +1092,37 @@ async function openLoggingScreen(ex){
   loggingScreenReps = repGoal;
   loggingScreenWeight = ex.weight != null ? toDisplayWeight(ex.weight) : 0;
   $("loggingScreen").classList.add('open');
+  await updateWorkoutBar();
   await renderLoggingScreen();
 }
+
 function closeLoggingScreen(){
   $("loggingScreen").classList.remove('open');
+}
+
+function renderCompleteExerciseModal(){
+  $("completeExSetsValue").textContent = completeExSets;
+  $("completeExWeightValue").textContent = completeExWeight;
+  $("completeExWeightUnit").textContent = unitLabel();
+  $("completeExRepsValue").textContent = completeExReps;
+}
+function openCompleteExerciseModal(){
+  if(!loggingScreenExercise) return;
+  const remainingSets = Math.max(1, (extractLeadingSets(loggingScreenExercise.target) || 1) - (loggingScreenSetIndex - 1));
+  completeExSets = remainingSets;
+  completeExWeight = loggingScreenWeight;
+  completeExReps = loggingScreenReps;
+  renderCompleteExerciseModal();
+  $("completeExModal").classList.add('open');
+}
+function closeCompleteExerciseModal(){
+  $("completeExModal").classList.remove('open');
+}
+
+function formatTargetBadge(target, setsNum){
+  const m = (target||'').match(/^\d+\s*×\s*(.+)$/);
+  const rest = m ? m[1] : (target || '');
+  return `${setsNum} set${setsNum===1?'':'s'} x ${rest}`;
 }
 
 async function renderLoggingScreen(){
@@ -1086,25 +1131,31 @@ async function renderLoggingScreen(){
   const targetSetsNum = extractLeadingSets(ex.target) || 1;
   const restSecs = getExerciseRestSeconds(ex.name);
   $("loggingExerciseName").textContent = ex.name;
+  $("loggingProgressText").textContent = `${loggingScreenPosition} / ${loggingScreenTotal}`;
+  $("loggingTargetBadge").textContent = formatTargetBadge(ex.target, targetSetsNum);
+
+  const data = findExerciseData(ex.name);
+  const muscleLabel = data && data.muscle ? muscleLabelFor(data.muscle) : '';
+  $("loggingMuscleRow").style.display = muscleLabel ? 'flex' : 'none';
+  $("loggingMuscleText").textContent = muscleLabel ? `Primary: ${muscleLabel}` : '';
+
+  const found = findExerciseImage(ex.name);
+  const folder = found ? (IMAGE_FOLDERS[found.libKey] || found.libKey) : '';
+  const src = found ? `${EXERCISE_IMAGE_BASE}${folder}/${found.img}` : '';
+  $("loggingImageCard").innerHTML = src ? `<img src="${src}" alt="">` : '';
+
   $("loggingSetLabel").textContent = `Set ${loggingScreenSetIndex} of ${targetSetsNum}`;
   $("loggingRepsValue").textContent = loggingScreenReps;
   $("loggingWeightValue").textContent = loggingScreenWeight;
   $("loggingWeightUnit").textContent = unitLabel();
-  $("loggingRestValue").textContent = formatRestSeconds(restSecs);
-
-  const repChips = [8,10,12,15,20];
-  $("loggingRepsChips").innerHTML = repChips.map(r=>`<button type="button" class="logging-chip ${r===loggingScreenReps?'active':''}" data-rep="${r}">${r}</button>`).join('');
-  $("loggingRepsChips").querySelectorAll('.logging-chip').forEach(btn=>{
-    btn.addEventListener('click', async ()=>{ loggingScreenReps = Number(btn.dataset.rep); await renderLoggingScreen(); });
-  });
-
-  const baseW = loggingScreenWeight || 20;
-  const step = userUnits==='lbs' ? 5 : 2.5;
-  const rawChips = [baseW-step*1.5, baseW-step, baseW-step*0.5, baseW, baseW+step*0.5].map(w=>Math.max(0, Math.round(w*100)/100));
-  const uniqueChips = [...new Set(rawChips)];
-  $("loggingWeightChips").innerHTML = uniqueChips.map(w=>`<button type="button" class="logging-chip ${w===loggingScreenWeight?'active':''}" data-w="${w}">${w}</button>`).join('');
-  $("loggingWeightChips").querySelectorAll('.logging-chip').forEach(btn=>{
-    btn.addEventListener('click', async ()=>{ loggingScreenWeight = Number(btn.dataset.w); await renderLoggingScreen(); });
+  $("loggingRestValue").textContent = formatRestSeconds(loggingScreenRestOverride != null ? loggingScreenRestOverride : restSecs);
+  $("loggingRestChips").innerHTML = REST_TIMER_OPTIONS.map(sec=>`<button type="button" class="logging-chip ${sec===loggingScreenRestOverride?'active':''}" data-sec="${sec}">${formatRestSeconds(sec)}</button>`).join('');
+  $("loggingRestChips").querySelectorAll('.logging-chip').forEach(btn=>{
+    btn.addEventListener('click', async ()=>{
+      loggingScreenRestOverride = Number(btn.dataset.sec);
+      $("loggingRestChips").style.display = 'none';
+      await renderLoggingScreen();
+    });
   });
 
   const session = await getSession(todayKey);
@@ -1620,6 +1671,15 @@ function fireTimerAlert(mode){
     if(navigator.vibrate) navigator.vibrate([150,80,150]);
   }
 }
+
+function updateRestProgress(remaining, totalSeconds){
+  const ring = $("restScreenRing");
+  if(!ring || !totalSeconds) return;
+
+  const elapsedRatio = Math.min(1, Math.max(0, 1 - (remaining / totalSeconds)));
+  ring.style.setProperty('--rest-progress', `${elapsedRatio * 360}deg`);
+}
+
 function startRest(seconds, label, alertMode){
   clearInterval(restInterval);
   let remaining = seconds;
@@ -1630,15 +1690,17 @@ function startRest(seconds, label, alertMode){
 
   const restScreen = $("restScreen");
   if(restScreen){
-    $("restScreenLabel").textContent = label;
-    $("restScreenTime").textContent = formatRestTime(remaining);
-    restScreen.classList.add('open');
-  }
+  $("restScreenLabel").textContent = label;
+  $("restScreenTime").textContent = formatRestTime(remaining);
+  updateRestProgress(remaining, seconds);
+  restScreen.classList.add('open');
+}
 
   restInterval = setInterval(()=>{
     remaining--;
     if(remaining <= 0){
       clearInterval(restInterval);
+      updateRestProgress(0, seconds);
       bar.classList.remove('show');
       if(restScreen) restScreen.classList.remove('open');
       showToast("Rest over — go!");
@@ -1646,7 +1708,11 @@ function startRest(seconds, label, alertMode){
       return;
     }
     $("restTime").textContent = formatRestTime(remaining);
-    if(restScreen) $("restScreenTime").textContent = formatRestTime(remaining);
+    
+    if(restScreen){
+      $("restScreenTime").textContent = formatRestTime(remaining);
+      updateRestProgress(remaining, seconds);
+    }
   }, 1000);
 }
 function skipRest(){
@@ -2137,7 +2203,7 @@ async function planExerciseNameSet(planKeys){
   }
   return names;
 }
-async function quickLog(exercise, weightVal, repsVal, targetSets){
+async function quickLog(exercise, weightVal, repsVal, targetSets, skipRestTimer){
   const reps = Number(repsVal);
   if(!reps){ showToast("Add a rep count"); return; }
   const weight = weightVal ? toStorageWeight(weightVal) : 0;
@@ -2161,12 +2227,14 @@ async function quickLog(exercise, weightVal, repsVal, targetSets){
   }
   await renderAll();
 
-  const restSeconds = getExerciseRestSeconds(exercise);
-  const countForExercise = updated.sets.filter(s=>s.exercise === exercise).length;
-  if(targetSets && countForExercise % targetSets === 0){
-    startRest(restSeconds, "Exercise done — rest before next", userTimerAlert);
-  } else {
-    startRest(restSeconds, "Rest between sets", userTimerAlert);
+  if(!skipRestTimer){
+    const restSeconds = getExerciseRestSeconds(exercise);
+    const countForExercise = updated.sets.filter(s=>s.exercise === exercise).length;
+    if(targetSets && countForExercise % targetSets === 0){
+      startRest(restSeconds, "Exercise done — rest before next", userTimerAlert);
+    } else {
+      startRest(restSeconds, "Rest between sets", userTimerAlert);
+    }
   }
 }
 async function deleteSet(id){
@@ -2591,25 +2659,128 @@ function closeWdRenameForm(){
 
 async function startWorkoutFromDetail(){
   const key = workoutDetailKey;
-  const session = await getSession(todayKey);
-  if(!session.plan.includes(key)){
-    await updateSession(todayKey, (s)=>{ s.plan.push(key); });
-  }
+
+  await updateSession(todayKey, (s)=>{
+    s.plan = [key];
+  });
+
   closeWorkoutDetail();
+
+  if(key === "warmup"){
+    await proceedToWorkoutSession();
+  } else {
+    openWuIntroScreen();
+  }
+}
+
+function restartWorkoutFromDetail(){
+  if(!workoutDetailKey) return;
+
+  $("restartWorkoutModal").classList.add("open");
+}
+
+async function confirmRestartWorkout(){
+  const key = workoutDetailKey;
+  if(!key) return;
+
+  $("restartWorkoutModal").classList.remove("open");
+
+  await updateSession(todayKey, (s)=>{
+    Object.assign(s, defaultSession(), {
+      plan: [key]
+    });
+  });
+
+  closeWorkoutDetail();
+
+  if(key === "warmup"){
+    await proceedToWorkoutSession();
+  } else {
+    openWuIntroScreen();
+  }
+}
+
+async function proceedToWorkoutSession(){
   document.querySelectorAll('.tab-btn').forEach(b=> b.classList.remove('active'));
   $("tabHomeBtn").classList.add('active');
   document.querySelectorAll('.app-page').forEach(p=> p.classList.remove('active'));
   $("homePage").classList.add('active');
   await openWorkoutSession();
+  const session = await getSession(todayKey);
+  const completed = session.completed || [];
+  const remaining = workoutSessionExerciseList.filter(ex=> !completed.includes(ex.name));
+  if(remaining.length){
+    await openLoggingScreen(remaining[0]);
+  }
+}
+
+function openWuIntroScreen(){
+  const list = $("wuIntroList");
+  list.innerHTML = '';
+  const exercises = (WORKOUTS['warmup'] && WORKOUTS['warmup'].exercises) || [];
+  exercises.forEach(ex=>{
+    const found = findExerciseImage(ex.name);
+    const folder = found ? (IMAGE_FOLDERS[found.libKey] || found.libKey) : '';
+    const src = found ? `${EXERCISE_IMAGE_BASE}${folder}/${found.img}` : '';
+    const row = document.createElement('div');
+    row.className = 'wu-row';
+    row.innerHTML = `
+      <div class="wu-row-thumb">${src ? `<img src="${src}" alt="">` : `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="5" r="2"/><path d="M12 7v6l-3 7M12 13l3 7M9 10l-3 2M15 10l3 2"/></svg>`}</div>
+      <div class="wu-row-info">
+        <div class="wu-row-title">${escapeHTML(ex.name)}</div>
+        <div class="wu-row-sub">${escapeHTML(ex.detail || '')}</div>
+      </div>
+    `;
+    list.appendChild(row);
+  });
+  $("wuIntroScreen").classList.add('open');
+}
+function closeWuIntroScreen(){
+  $("wuIntroScreen").classList.remove('open');
 }
 
 async function renderWorkoutDetail(){
   const key = workoutDetailKey;
   const def = await getPlanDef(key);
-  if(!def){ closeWorkoutDetail(); return; }
-  closeWdRenameForm();
+  if(!def){ closeWorkoutDetail(); return; 
+  }
+  const session = await getSession(todayKey);
+
+const isActiveWorkout =
+  session.startedAt &&
+  !session.finishedAt &&
+  session.plan.includes(key);
+
+const playButton = $("wdPlayFabBtn");
+const restartButton = $("wdRestartFabBtn");
+
+playButton.style.display = "flex";
+
+if(isActiveWorkout){
+  playButton.setAttribute("aria-label", "Continue workout");
+  playButton.innerHTML = `
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round">
+      <path d="M5 12h14"/>
+      <path d="M13 6l6 6-6 6"/>
+    </svg>
+  `;
+
+  if(restartButton) restartButton.style.display = "flex";
+} else {
+  playButton.setAttribute("aria-label", "Start this workout");
+  playButton.innerHTML = `
+    <svg viewBox="0 0 24 24" fill="currentColor">
+      <path d="M7 4v16l14-8z"/>
+    </svg>
+  `;
+
+  if(restartButton) restartButton.style.display = "none";
+}
+
+closeWdRenameForm();
   $("wdTitle").textContent = def.label;
   $("wdRenameBtn").style.display = key.startsWith('custom-') ? '' : 'none';
+  $("wdTitleEditBtn").style.display = key.startsWith('custom-') ? '' : 'none';
 
   const exercises = def.type === 'strength'
     ? await getWorkoutTemplate(key)
@@ -2668,8 +2839,6 @@ async function renderWorkoutDetail(){
   });
 }
 
-let wdEditExReorderMode = false;
-
 async function renderWdEditExList(){
   const key = workoutDetailKey;
   const def = await getPlanDef(key);
@@ -2683,8 +2852,6 @@ async function renderWdEditExList(){
   $("wdEditExNameValue").textContent = def.label;
   $("wdEditExRenameBtn").style.display = isCustom ? '' : 'none';
   $("wdEditExCount").textContent = `Exercises (${exercises.length})`;
-  $("wdEditExOrderBtn").style.display = (isStrength && exercises.length > 1) ? '' : 'none';
-  $("wdEditExOrderBtn").textContent = wdEditExReorderMode ? 'Done' : 'Edit order';
 
   const list = $("wdEditExList");
   list.innerHTML = '';
@@ -2703,8 +2870,11 @@ async function renderWdEditExList(){
     row.className = 'wd-editex-row';
     row.dataset.name = ex.name;
     row.innerHTML = `
-      ${(isStrength && wdEditExReorderMode)
-        ? `<div class="wd-editex-drag-handle" aria-label="Drag to reorder">⠿</div>`
+      ${isStrength
+        ? `<div class="wd-editex-reorder">
+            <button type="button" class="wd-editex-up" ${i===0 ? 'disabled' : ''} aria-label="Move up">▲</button>
+            <button type="button" class="wd-editex-down" ${i===exercises.length-1 ? 'disabled' : ''} aria-label="Move down">▼</button>
+          </div>`
         : `<div class="wd-editex-num">${i+1}</div>`}
       <div class="wd-editex-thumb">${src ? `<img src="${src}" alt="">` : ''}</div>
       <div class="wd-editex-name">
@@ -2720,65 +2890,26 @@ async function renderWdEditExList(){
         showToast(`${ex.name} removed`);
         await renderWdEditExList();
       });
-      if(wdEditExReorderMode){
-        attachWdEditExDragHandle(row, key);
+      {
+        row.querySelector('.wd-editex-up').addEventListener('click', async ()=>{
+          const current = await getWorkoutTemplate(key);
+          if(i === 0) return;
+          [current[i-1], current[i]] = [current[i], current[i-1]];
+          await saveWorkoutTemplate(key, current);
+          await renderWdEditExList();
+        });
+        row.querySelector('.wd-editex-down').addEventListener('click', async ()=>{
+          const current = await getWorkoutTemplate(key);
+          if(i === current.length-1) return;
+          [current[i+1], current[i]] = [current[i], current[i+1]];
+          await saveWorkoutTemplate(key, current);
+          await renderWdEditExList();
+        });
       }
     }
     list.appendChild(row);
   });
   $("wdEditAddExerciseBtn").style.display = isStrength ? '' : 'none';
-}
-
-function attachWdEditExDragHandle(row, key){
-  const handle = row.querySelector('.wd-editex-drag-handle');
-  const list = row.parentElement;
-
-  handle.addEventListener('pointerdown', (e)=>{
-    e.preventDefault();
-    handle.setPointerCapture(e.pointerId);
-    let startY = e.clientY;
-    row.classList.add('dragging');
-    row.style.position = 'relative';
-    row.style.touchAction = 'none';
-    list.style.touchAction = 'none';
-
-    const onMove = (ev)=>{
-      const deltaY = ev.clientY - startY;
-      row.style.transform = `translateY(${deltaY}px)`;
-
-      const myRect = row.getBoundingClientRect();
-      const myCenter = myRect.top + myRect.height / 2;
-      Array.from(list.children).forEach(sib=>{
-        if(sib === row) return;
-        const rect = sib.getBoundingClientRect();
-        const sibCenter = rect.top + rect.height / 2;
-        if(Math.abs(myCenter - sibCenter) < rect.height / 2){
-          const rowIndex = Array.from(list.children).indexOf(row);
-          const sibIndex = Array.from(list.children).indexOf(sib);
-          if(rowIndex < sibIndex) list.insertBefore(row, sib.nextSibling);
-          else list.insertBefore(row, sib);
-          startY = ev.clientY;
-          row.style.transform = '';
-        }
-      });
-    };
-    const finish = async ()=>{
-      document.removeEventListener('pointermove', onMove);
-      document.removeEventListener('pointerup', finish);
-      document.removeEventListener('pointercancel', finish);
-      row.classList.remove('dragging');
-      row.style.transform = '';
-      list.style.touchAction = '';
-      const order = Array.from(list.children).map(r=> r.dataset.name).filter(Boolean);
-      const current = await getWorkoutTemplate(key);
-      const reordered = order.map(name=> current.find(e=> e.name === name)).filter(Boolean);
-      await saveWorkoutTemplate(key, reordered);
-      await renderWdEditExList();
-    };
-    document.addEventListener('pointermove', onMove);
-    document.addEventListener('pointerup', finish);
-    document.addEventListener('pointercancel', finish);
-  });
 }
 
 function openWdEditExNameForm(){
@@ -2794,7 +2925,6 @@ function closeWdEditExNameForm(){
 }
 
 async function openWdEditExercisesScreen(){
-  wdEditExReorderMode = false;
   closeWdEditExNameForm();
   $("wdEditExercisesScreen").classList.add('open');
   await renderWdEditExList();
@@ -2804,18 +2934,77 @@ async function closeWdEditExercisesScreen(){
   await renderWorkoutDetail();
 }
 
-let wdAddExSearch = '';
-let wdAddExMuscleFilter = null;
+  let wdAddExSearch = '';
+  let wdAddExMuscleFilter = null;
+  let wdAddExCurrentList = [];
+  let wdAddExSessionNames = new Set();
+  let wdAddExSaveChain = Promise.resolve();
 
-async function openWdAddExerciseScreen(){
-  wdAddExSearch = '';
-  wdAddExMuscleFilter = null;
-  $("wdAddExSearchInput").value = '';
-  $("wdAddExerciseScreen").classList.add('open');
-  await renderWdAddExercisePicker();
-}
+  function queueWdAddExSave(key){
+    const snapshot = wdAddExCurrentList.map(e=>({...e}));
+    wdAddExSaveChain = wdAddExSaveChain.then(()=> saveWorkoutTemplate(key, snapshot));
+    return wdAddExSaveChain;
+  }
+
+  let wdAddExOriginalSnapshot = [];
+
+  async function openWdAddExerciseScreen(){
+    wdAddExSearch = '';
+    wdAddExMuscleFilter = null;
+    wdAddExSessionNames = new Set();
+    wdAddExCurrentList = await getWorkoutTemplate(workoutDetailKey);
+    wdAddExOriginalSnapshot = wdAddExCurrentList.map(e=>({...e}));
+    $("wdAddExSearchInput").value = '';
+    $("wdAddExerciseScreen").classList.add('open');
+    renderWdAddExSelectedList();
+    await renderWdAddExercisePicker();
+  }
+
+  async function cancelWdAddExerciseScreen(){
+    const key = workoutDetailKey;
+    await saveWorkoutTemplate(key, wdAddExOriginalSnapshot);
+    $("wdAddExerciseScreen").classList.remove('open');
+    await renderWorkoutDetail();
+    await renderWdEditExList();
+  }
+
+  function renderWdAddExSelectedList(){
+    const key = workoutDetailKey;
+    const list = $("wdAddExSelectedList");
+    list.innerHTML = '';
+    const picks = wdAddExCurrentList.filter(ex=> wdAddExSessionNames.has(ex.name));
+    picks.forEach(ex=>{
+      const row = document.createElement('div');
+      row.className = 'template-row';
+      row.innerHTML = `
+        <span class="drag-handle">⠿</span>
+        <input type="text" class="t-name" value="${escapeHTML(ex.name)}" readonly>
+        <input type="text" class="t-target" value="${escapeHTML(ex.target)}" placeholder="3 × 12">
+        <input type="text" class="t-weight" value="${ex.weight != null ? escapeHTML(String(ex.weight)) : ''}" placeholder="${userUnits}">
+        <button type="button" class="t-remove" aria-label="Remove">✕</button>
+      `;
+      const commit = ()=>{
+        ex.target = row.querySelector('.t-target').value.trim() || '3 × 12';
+        const w = row.querySelector('.t-weight').value.trim();
+        ex.weight = w ? w : null;
+        queueWdAddExSave(key);
+      };
+      row.querySelector('.t-target').addEventListener('change', commit);
+      row.querySelector('.t-weight').addEventListener('change', commit);
+      row.querySelector('.t-remove').addEventListener('click', ()=>{
+        wdAddExSessionNames.delete(ex.name);
+        wdAddExCurrentList = wdAddExCurrentList.filter(e=> e.name !== ex.name);
+        queueWdAddExSave(key);
+        showToast(`${ex.name} removed`);
+        renderWdAddExSelectedList();
+      });
+      list.appendChild(row);
+    });
+  }
+
 async function closeWdAddExerciseScreen(){
   $("wdAddExerciseScreen").classList.remove('open');
+  await renderWorkoutDetail();
   await renderWdEditExList();
 }
 
@@ -2846,8 +3035,8 @@ async function renderWdAddExercisePicker(){
     filterRow.appendChild(chip);
   });
 
-  const grid = $("wdAddExPicker");
-  grid.innerHTML = '';
+  const list = $("wdAddExPicker");
+  list.innerHTML = '';
   available
     .filter(ex=>{
       if(wdAddExMuscleFilter){
@@ -2861,22 +3050,42 @@ async function renderWdAddExercisePicker(){
       const found = findExerciseImage(ex.name);
       const folder = found ? (IMAGE_FOLDERS[found.libKey] || found.libKey) : '';
       const src = found ? `${EXERCISE_IMAGE_BASE}${folder}/${found.img}` : '';
-      const chip = document.createElement('button');
-      chip.type = 'button';
-      chip.className = 'exercise-picker-chip';
-      chip.innerHTML = `<img src="${src}" alt="${escapeHTML(ex.name)}"><span class="epc-label">${escapeHTML(ex.name)}</span>`;
-      chip.addEventListener('click', async ()=>{
+      const data = findExerciseData(ex.name);
+      const muscleLabel = data && data.muscle ? muscleLabelFor(data.muscle) : '';
+      const alreadyIn = wdAddExCurrentList.some(e=> e.name === ex.name);
+
+      const row = document.createElement('button');
+      row.type = 'button';
+      row.className = 'wd-add-ex-row';
+      row.innerHTML = `
+        <div class="wd-add-ex-thumb">${src ? `<img src="${src}" alt="">` : ''}</div>
+        <div class="wd-add-ex-info">
+          <div class="wd-add-ex-name">${escapeHTML(ex.name)}</div>
+          <div class="wd-add-ex-muscles">${escapeHTML(muscleLabel)}</div>
+        </div>
+        <button type="button" class="wd-add-ex-plus ${alreadyIn ? 'added' : ''}" aria-label="Add ${escapeHTML(ex.name)}">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" stroke-linecap="round">${alreadyIn ? '<path d="M5 13l4 4L19 7"/>' : '<path d="M12 5v14M5 12h14"/>'}</svg>
+        </button>
+      `;
+      row.addEventListener('click', ()=> openExerciseImageModal(src, ex.name));
+      row.querySelector('.wd-add-ex-plus').addEventListener('click', (e)=>{
+        e.stopPropagation();
         const key = workoutDetailKey;
-        const existing = await getWorkoutTemplate(key);
-        if(existing.some(e=> e.name === ex.name)){
-          showToast(`${ex.name} is already in this workout`);
-          return;
+        const isIn = wdAddExCurrentList.some(e2=> e2.name === ex.name);
+        if(isIn){
+          wdAddExCurrentList = wdAddExCurrentList.filter(e2=> e2.name !== ex.name);
+          wdAddExSessionNames.delete(ex.name);
+          showToast(`${ex.name} removed`);
+        } else {
+          const entry = { name: ex.name, target: '3 × 12', weight: null };
+          wdAddExCurrentList.push(entry);
+          wdAddExSessionNames.add(ex.name);
         }
-        existing.push({ name: ex.name, target: '3 × 12', weight: null });
-        await saveWorkoutTemplate(key, existing);
-        showToast(`${ex.name} added`);
+        queueWdAddExSave(key);
+        renderWdAddExSelectedList();
+        renderWdAddExercisePicker();
       });
-      grid.appendChild(chip);
+      list.appendChild(row);
     });
 }
 
@@ -3139,18 +3348,34 @@ let workoutTimerInterval = null;
 let workoutTimerStartedAt = null;
 async function updateWorkoutBar(){
   const session = await getSession(todayKey);
-  const bar = $("workoutBar");
+
+  const bars = [
+    $("workoutBar"),
+    $("loggingWorkoutBar")
+  ].filter(Boolean);
+
+  const timerLabels = [
+    $("workoutTimerText"),
+    $("loggingWorkoutTimerText")
+  ].filter(Boolean);
+
   if(session.startedAt && !session.finishedAt){
-    bar.style.display = 'flex';
+    bars.forEach(bar => bar.style.display = 'flex');
+
+    const tick = ()=>{
+      const time = formatDuration(Date.now() - session.startedAt);
+      timerLabels.forEach(label => label.textContent = time);
+    };
+
+    tick();
+
     if(workoutTimerStartedAt !== session.startedAt){
       workoutTimerStartedAt = session.startedAt;
       clearInterval(workoutTimerInterval);
-      const tick = ()=>{ $("workoutTimerText").textContent = formatDuration(Date.now() - session.startedAt); };
-      tick();
       workoutTimerInterval = setInterval(tick, 1000);
     }
   } else {
-    bar.style.display = 'none';
+    bars.forEach(bar => bar.style.display = 'none');
     clearInterval(workoutTimerInterval);
     workoutTimerInterval = null;
     workoutTimerStartedAt = null;
@@ -3160,26 +3385,72 @@ async function updateWorkoutBar(){
 /* ---------- finish workout ---------- */
 async function handleFinishWorkout(){
   const session = await getSession(todayKey);
-  if(!session.startedAt){ showToast("Log a set first"); return; }
+
+  if(!session.startedAt){
+    showToast("Log a set first");
+    return;
+  }
+
   const duration = Date.now() - session.startedAt;
   const totalSets = session.sets.length;
-  const exNames = new Set(session.sets.map(s=>s.exercise));
-  (session.completed || []).forEach(name=>exNames.add(name));
+  const exNames = new Set(session.sets.map(s => s.exercise));
+  (session.completed || []).forEach(name => exNames.add(name));
+
   const uniqueExercises = exNames.size;
   const totalVolume = volumeOf(session.sets);
   const prs = session.newPRs || [];
+  const profile = await getProfile();
+  const name = escapeHTML(displayName(profile));
 
   selectedMood = null;
+
   $("finishModalBody").innerHTML = `
-    <div class="finish-stat-grid">
-      <div class="finish-stat"><div class="finish-stat-num">${formatDuration(duration)}</div><div class="finish-stat-lbl">Duration</div></div>
-      <div class="finish-stat"><div class="finish-stat-num" id="finishStatSets">0</div><div class="finish-stat-lbl">Total sets</div></div>
-      <div class="finish-stat"><div class="finish-stat-num" id="finishStatExercises">0</div><div class="finish-stat-lbl">Exercises</div></div>
-      <div class="finish-stat"><div class="finish-stat-num" id="finishStatVolume">0</div><div class="finish-stat-lbl">Volume (${unitLabel()})</div></div>
+    <div class="workout-complete-hero">
+      <div class="workout-complete-copy">
+        <div class="workout-complete-eyebrow">Workout</div>
+        <div class="workout-complete-title">Complete 💪</div>
+        <p>Great work, ${name}!<br>You showed up and gave it your all. 💚</p>
+      </div>
+
+      <img
+        class="workout-complete-mascot"
+        src="icons/mascot/flexing.png"
+        alt="PumpPal mascot celebrating"
+      >
     </div>
+
+    <div class="finish-stat-grid workout-complete-stats">
+      <div class="finish-stat">
+        <div class="finish-stat-num">${formatDuration(duration)}</div>
+        <div class="finish-stat-lbl">Duration</div>
+      </div>
+      <div class="finish-stat">
+        <div class="finish-stat-num" id="finishStatSets">0</div>
+        <div class="finish-stat-lbl">Total sets</div>
+      </div>
+      <div class="finish-stat">
+        <div class="finish-stat-num" id="finishStatExercises">0</div>
+        <div class="finish-stat-lbl">Exercises</div>
+      </div>
+      <div class="finish-stat">
+        <div class="finish-stat-num" id="finishStatVolume">0</div>
+        <div class="finish-stat-lbl">Volume (${unitLabel()})</div>
+      </div>
+    </div>
+
     ${prs.length
-      ? `<div class="finish-pr-title">🏆 New personal records</div>${prs.map(p=>`<div class="finish-pr-item">${escapeHTML(p.exercise)}<br>${escapeHTML(p.detail)}</div>`).join("")}`
-      : `<div class="finish-pr-title" style="color:var(--text-dim);">No new PRs this time — still solid work.</div>`}
+      ? `
+        <div class="finish-pr-title">🏆 New personal records</div>
+        ${prs.map(p => `
+          <div class="finish-pr-item">
+            ${escapeHTML(p.exercise)}<br>
+            ${escapeHTML(p.detail)}
+          </div>
+        `).join("")}
+      `
+      : ""
+    }
+
     <div class="mood-label">How was your workout?</div>
     <div class="mood-row" id="moodRow">
       <button type="button" class="mood-btn" data-mood="1">😞</button>
@@ -3189,21 +3460,73 @@ async function handleFinishWorkout(){
       <button type="button" class="mood-btn" data-mood="5">😄</button>
     </div>
   `;
+
   animateNumber($("finishStatSets"), totalSets);
   animateNumber($("finishStatExercises"), uniqueExercises);
   animateNumber($("finishStatVolume"), Math.round(toDisplayWeight(totalVolume)));
-  $("moodRow").querySelectorAll('.mood-btn').forEach(btn=>{
-    btn.addEventListener('click', ()=>{
+
+  $("moodRow").querySelectorAll(".mood-btn").forEach(btn => {
+    btn.addEventListener("click", ()=>{
       selectedMood = Number(btn.dataset.mood);
-      $("moodRow").querySelectorAll('.mood-btn').forEach(b=> b.classList.remove('active'));
-      btn.classList.add('active');
+      $("moodRow").querySelectorAll(".mood-btn").forEach(b => b.classList.remove("active"));
+      btn.classList.add("active");
     });
   });
-  $("finishModal").classList.add('open');
+
+  $("finishShareBtn").onclick = async ()=>{
+    const text = `I completed a workout: ${totalSets} sets, ${uniqueExercises} exercises, and ${Math.round(toDisplayWeight(totalVolume))}${unitLabel()} of volume. 💪`;
+
+    if(navigator.share){
+      try{
+        await navigator.share({ title:"PumpPal workout complete", text });
+      }catch(err){
+        if(err.name !== "AbortError") showToast("Couldn't share workout");
+      }
+    } else {
+      try{
+        await navigator.clipboard.writeText(text);
+        showToast("Workout summary copied");
+      }catch(err){
+        showToast("Sharing isn't available here");
+      }
+    }
+  };
+
+  $("finishModal").classList.add("open");
 }
 async function saveFinishedWorkout(){
-  await updateSession(todayKey, (s)=>{ s.finishedAt = Date.now(); s.mood = selectedMood; });
-  $("finishModal").classList.remove('open');
+  const finishedAt = Date.now();
+
+  await updateSession(todayKey, (s)=>{
+    s.finishedAt = finishedAt;
+    s.mood = selectedMood;
+  });
+
+  const savedSession = await getSession(todayKey);
+
+  if(!savedSession.finishedAt){
+    showToast("Couldn't save workout — please try again");
+    return;
+  }
+
+  $("finishModal").classList.remove("open");
+
+  closeLoggingScreen();
+  $("workoutSessionScreen").classList.remove("open");
+  stopWssTimer();
+
+  clearInterval(workoutTimerInterval);
+  workoutTimerInterval = null;
+  workoutTimerStartedAt = null;
+
+  ["workoutBar", "loggingWorkoutBar"].forEach(id => {
+    const bar = $(id);
+    if(bar) bar.style.display = "none";
+  });
+
+  setActiveTab("tabHomeBtn");
+  showAppPage("homePage");
+
   await renderAll();
   showToast("Workout saved 💪");
 }
@@ -3268,6 +3591,149 @@ function hideSplashScreen(){
   }, 250);
 }
 
+function getAllLibraryExercises(){
+  return Object.entries(EXERCISE_LIBRARY).flatMap(([libraryKey, exercises]) =>
+    exercises.map(exercise => ({ ...exercise, libraryKey }))
+  );
+}
+
+function getLibraryBodyGroup(exercise){
+  const upperMuscles = ["chest", "back", "shoulders", "biceps", "triceps"];
+  const lowerMuscles = ["legs", "glutes"];
+
+  if(upperMuscles.includes(exercise.muscle)) return "upper";
+  if(lowerMuscles.includes(exercise.muscle)) return "lower";
+  return "full";
+}
+
+function getLibraryExerciseImage(exercise){
+  const folder = IMAGE_FOLDERS[exercise.libraryKey] || exercise.libraryKey;
+  return `${EXERCISE_IMAGE_BASE}${folder}/${exercise.img}`;
+}
+
+async function openExerciseLibrary(){
+  exerciseLibraryFilter = "all";
+  exerciseLibrarySearch = "";
+  $("exerciseLibrarySearchInput").value = "";
+  $("exerciseLibraryScreen").classList.add("open");
+  await renderExerciseLibrary();
+}
+
+function closeExerciseLibrary(){
+  $("exerciseLibraryScreen").classList.remove("open");
+}
+
+async function renderExerciseLibrary(){
+  const query = exerciseLibrarySearch.trim().toLowerCase();
+
+  const exercises = getAllLibraryExercises()
+    .filter(exercise =>
+      exerciseLibraryFilter === "all" ||
+      getLibraryBodyGroup(exercise) === exerciseLibraryFilter
+    )
+    .filter(exercise =>
+      !query ||
+      exercise.name.toLowerCase().includes(query) ||
+      muscleLabelFor(exercise.muscle).toLowerCase().includes(query)
+    )
+    .sort((a, b) => a.name.localeCompare(b.name));
+
+  $("exerciseLibraryCount").textContent =
+    `${exercises.length} exercise${exercises.length === 1 ? "" : "s"}`;
+
+  $("exerciseLibraryFilters").querySelectorAll(".exercise-library-filter").forEach(button => {
+    button.classList.toggle("active", button.dataset.filter === exerciseLibraryFilter);
+  });
+
+  const list = $("exerciseLibraryList");
+  list.innerHTML = "";
+
+  exercises.forEach(exercise => {
+    const row = document.createElement("div");
+    row.className = "exercise-library-row";
+
+    row.innerHTML = `
+      <div class="exercise-library-image">
+        <img src="${getLibraryExerciseImage(exercise)}" alt="">
+      </div>
+
+      <div class="exercise-library-info">
+        <div class="exercise-library-name">${escapeHTML(exercise.name)}</div>
+        <div class="exercise-library-muscles">${escapeHTML(muscleLabelFor(exercise.muscle))}</div>
+      </div>
+
+      <button
+        type="button"
+        class="exercise-library-add"
+        aria-label="Add ${escapeHTML(exercise.name)} to workout"
+      >+</button>
+    `;
+
+    row.querySelector(".exercise-library-add").addEventListener("click", ()=>{
+      openLibraryWorkoutPicker(exercise);
+    });
+
+    row.addEventListener("click", (event)=>{
+      if(!event.target.closest(".exercise-library-add")){
+        openExerciseImageModal(getLibraryExerciseImage(exercise), exercise.name);
+      }
+    });
+
+    list.appendChild(row);
+  });
+}
+
+async function openLibraryWorkoutPicker(exercise){
+  libraryPendingExercise = exercise;
+
+  const workouts = (await getAllPlanDefs())
+    .filter(workout => workout.type === "strength");
+
+  const list = $("libraryWorkoutPickerList");
+  list.innerHTML = "";
+
+  workouts.forEach(workout => {
+    const button = document.createElement("button");
+    button.type = "button";
+    button.className = "library-workout-choice";
+    button.textContent = workout.label;
+
+    button.addEventListener("click", async ()=>{
+      await addLibraryExerciseToWorkout(workout.key);
+    });
+
+    list.appendChild(button);
+  });
+
+  $("libraryWorkoutPickerModal").classList.add("open");
+}
+
+async function addLibraryExerciseToWorkout(workoutKey){
+  if(!libraryPendingExercise) return;
+
+  const exercise = libraryPendingExercise;
+  const currentExercises = await getWorkoutTemplate(workoutKey);
+
+  if(currentExercises.some(item => item.name === exercise.name)){
+    showToast("That exercise is already in this workout");
+    return;
+  }
+
+  currentExercises.push({
+    name: exercise.name,
+    target: "3 × 12",
+    weight: 0
+  });
+
+  await saveWorkoutTemplate(workoutKey, currentExercises);
+
+  $("libraryWorkoutPickerModal").classList.remove("open");
+  closeExerciseLibrary();
+
+  await openWorkoutDetail(workoutKey);
+  showToast(`${exercise.name} added`);
+}
+
 async function init(){
   document.body.classList.add('splash-active');
   startSplashProgress();
@@ -3298,6 +3764,42 @@ async function init(){
   $("overloadNotNowBtn").addEventListener('click', closeOverloadModal);
   $("overloadIncreaseBtn").addEventListener('click', acceptOverload);
   $("overloadModal").addEventListener('click', (e)=>{ if(e.target.id === 'overloadModal') closeOverloadModal(); });
+
+$("workoutsLibraryBtn").addEventListener("click", openExerciseLibrary);
+
+$("exerciseLibraryBackBtn").addEventListener("click", closeExerciseLibrary);
+
+$("exerciseLibrarySearchInput").addEventListener("input", async (event)=>{
+  exerciseLibrarySearch = event.target.value;
+  await renderExerciseLibrary();
+});
+
+$("exerciseLibraryFilters").querySelectorAll(".exercise-library-filter").forEach(button => {
+  button.addEventListener("click", async ()=>{
+    exerciseLibraryFilter = button.dataset.filter;
+    await renderExerciseLibrary();
+  });
+});
+
+$("libraryWorkoutPickerClose").addEventListener("click", ()=>{
+  $("libraryWorkoutPickerModal").classList.remove("open");
+});
+
+$("libraryWorkoutPickerModal").addEventListener("click", (event)=>{
+  if(event.target.id === "libraryWorkoutPickerModal"){
+    $("libraryWorkoutPickerModal").classList.remove("open");
+  }
+});
+
+  $("restartWorkoutCancelBtn").addEventListener("click", ()=>{
+  $("restartWorkoutModal").classList.remove("open");});
+  $("restartWorkoutConfirmBtn").addEventListener("click", confirmRestartWorkout);
+
+$("restartWorkoutModal").addEventListener("click", (e)=>{
+  if(e.target.id === "restartWorkoutModal"){
+    $("restartWorkoutModal").classList.remove("open");
+  }
+});
 
   $("avatarBtn").addEventListener('click', ()=>{
     $("profileModal").classList.remove('tab-page');
@@ -3361,14 +3863,31 @@ $("wdBackBtn").addEventListener('click', closeWorkoutDetail);
     showToast("Workout renamed");
   });
   $("wdRenameCancelBtn").addEventListener('click', closeWdRenameForm);
-  $("wdPlayFabBtn").addEventListener('click', startWorkoutFromDetail);
-  $("wdAddExerciseBtn").addEventListener('click', openWdEditExercisesScreen);
+  $("wdPlayFabBtn").addEventListener('click', async ()=>{
+  const session = await getSession(todayKey);
+
+  const isActiveWorkout =
+    session.startedAt &&
+    !session.finishedAt &&
+    session.plan.includes(workoutDetailKey);
+
+  if(isActiveWorkout){
+    closeWorkoutDetail();
+    await proceedToWorkoutSession();
+  } else {
+    await startWorkoutFromDetail();
+  }
+});
+
+$("wdRestartFabBtn").addEventListener('click', restartWorkoutFromDetail);
+  $("wuIntroBackBtn").addEventListener('click', closeWuIntroScreen);
+  $("wuReadyBtn").addEventListener('click', async ()=>{ closeWuIntroScreen(); await proceedToWorkoutSession(); });
+  $("wuSkipBtn").addEventListener('click', async ()=>{ closeWuIntroScreen(); await proceedToWorkoutSession(); });
+  $("wdAddExerciseBtn").addEventListener('click', openWdAddExerciseScreen);
+  $("wdTitleEditBtn").addEventListener('click', openWdRenameForm);
   $("wdEditExBackBtn").addEventListener('click', closeWdEditExercisesScreen);
   $("wdEditAddExerciseBtn").addEventListener('click', openWdAddExerciseScreen);
-  $("wdEditExOrderBtn").addEventListener('click', async ()=>{
-    wdEditExReorderMode = !wdEditExReorderMode;
-    await renderWdEditExList();
-  });
+  $("wdAddExDoneBtn").addEventListener('click', closeWdAddExerciseScreen);
   $("wdEditExRenameBtn").addEventListener('click', openWdEditExNameForm);
   $("wdEditExNameCancelBtn").addEventListener('click', closeWdEditExNameForm);
   $("wdEditExNameSaveBtn").addEventListener('click', async ()=>{
@@ -3380,7 +3899,7 @@ $("wdBackBtn").addEventListener('click', closeWorkoutDetail);
     await renderPlanGrid();
     showToast("Workout renamed");
   });
-  $("wdAddExBackBtn").addEventListener('click', closeWdAddExerciseScreen);
+  $("wdAddExBackBtn").addEventListener('click', cancelWdAddExerciseScreen);
   $("wdAddExSearchInput").addEventListener('input', async (e)=>{
     wdAddExSearch = e.target.value;
     await renderWdAddExercisePicker();
@@ -3405,9 +3924,18 @@ $("wdBackBtn").addEventListener('click', closeWorkoutDetail);
   $("wssBackBtn").addEventListener('click', closeWorkoutSession);
 
   $("loggingBackBtn").addEventListener('click', async ()=>{
-    closeLoggingScreen();
-    await renderWorkoutSessionOverview();
-  });
+  const planKey = loggingScreenExercise?.planKey;
+
+  closeLoggingScreen();
+  closeWorkoutSession();
+
+  if(planKey){
+    await openWorkoutDetail(planKey);
+  } else {
+    setActiveTab('tabWorkoutsBtn');
+    showAppPage('workoutsPage');
+  }
+});
   $("loggingGuideBtn").addEventListener('click', ()=>{
     if(!loggingScreenExercise) return;
     const found = findExerciseImage(loggingScreenExercise.name);
@@ -3427,11 +3955,16 @@ $("wdBackBtn").addEventListener('click', closeWorkoutDetail);
     loggingScreenWeight = Math.round((loggingScreenWeight+step)*100)/100;
     await renderLoggingScreen();
   });
+  $("loggingRestChangeBtn").addEventListener('click', ()=>{
+    const el = $("loggingRestChips");
+    el.style.display = el.style.display === 'none' ? 'flex' : 'none';
+  });
   $("loggingLogSetBtn").addEventListener('click', async ()=>{
     const ex = loggingScreenExercise;
     if(!ex) return;
     const targetSetsNum = extractLeadingSets(ex.target);
     await quickLog(ex.name, loggingScreenWeight, loggingScreenReps, targetSetsNum);
+    if(loggingScreenRestOverride != null) startRest(loggingScreenRestOverride, "Rest between sets", userTimerAlert);
     const session = await getSession(todayKey);
     const loggedCount = session.sets.filter(s=>s.exercise===ex.name).length;
     if(targetSetsNum && loggedCount >= targetSetsNum){
@@ -3441,10 +3974,57 @@ $("wdBackBtn").addEventListener('click', closeWorkoutDetail);
       });
       await checkProgressiveOverload(ex.name);
       closeLoggingScreen();
+
+      const freshSession = await getSession(todayKey);
+      const completed = freshSession.completed || [];
+      const remaining = workoutSessionExerciseList.filter(e2=> !completed.includes(e2.name));
       await renderWorkoutSessionOverview();
+      if(remaining.length){
+        await openLoggingScreen(remaining[0]);
+      }
     } else {
       loggingScreenSetIndex++;
       await renderLoggingScreen();
+    }
+  });
+
+  $("loggingCompleteBtn").addEventListener('click', openCompleteExerciseModal);
+  $("completeExCancelBtn").addEventListener('click', closeCompleteExerciseModal);
+  $("completeExWeightMinus").addEventListener('click', ()=>{
+    const step = userUnits==='lbs' ? 5 : 2.5;
+    completeExWeight = Math.max(0, Math.round((completeExWeight-step)*100)/100);
+    renderCompleteExerciseModal();
+  });
+  $("completeExWeightPlus").addEventListener('click', ()=>{
+    const step = userUnits==='lbs' ? 5 : 2.5;
+    completeExWeight = Math.round((completeExWeight+step)*100)/100;
+    renderCompleteExerciseModal();
+  });
+  $("completeExRepsMinus").addEventListener('click', ()=>{ completeExReps = Math.max(1, completeExReps-1); renderCompleteExerciseModal(); });
+  $("completeExRepsPlus").addEventListener('click', ()=>{ completeExReps++; renderCompleteExerciseModal(); });
+  $("completeExSetsMinus").addEventListener('click', ()=>{ completeExSets = Math.max(1, completeExSets-1); renderCompleteExerciseModal(); });
+  $("completeExSetsPlus").addEventListener('click', ()=>{ completeExSets++; renderCompleteExerciseModal(); });
+  $("completeExContinueBtn").addEventListener('click', async ()=>{
+    const ex = loggingScreenExercise;
+    if(!ex) return;
+    const targetSetsNum = extractLeadingSets(ex.target);
+    for(let i=0; i<completeExSets; i++){
+      await quickLog(ex.name, completeExWeight, completeExReps, targetSetsNum, true);
+    }
+    await updateSession(todayKey, (s)=>{
+      s.completed = s.completed || [];
+      if(!s.completed.includes(ex.name)) s.completed.push(ex.name);
+    });
+    await checkProgressiveOverload(ex.name);
+    closeCompleteExerciseModal();
+    closeLoggingScreen();
+
+    const session = await getSession(todayKey);
+    const completed = session.completed || [];
+    const remaining = workoutSessionExerciseList.filter(e2=> !completed.includes(e2.name));
+    await renderWorkoutSessionOverview();
+    if(remaining.length){
+      await openLoggingScreen(remaining[0]);
     }
   });
 
@@ -3455,11 +4035,7 @@ $("wdBackBtn").addEventListener('click', closeWorkoutDetail);
     setActiveTab('tabWorkoutsBtn');
     showAppPage('workoutsPage');
   });
-  $("qaLibraryBtn").addEventListener('click', ()=>{
-    showToast("Exercise Library is coming soon");
-    setActiveTab('tabWorkoutsBtn');
-    showAppPage('workoutsPage');
-  });
+  $("qaLibraryBtn").addEventListener("click", openExerciseLibrary);
   $("qaNewWorkoutBtn").addEventListener('click', ()=>{
     setActiveTab('tabWorkoutsBtn');
     showAppPage('workoutsPage');
@@ -3525,6 +4101,7 @@ $("wdBackBtn").addEventListener('click', closeWorkoutDetail);
   });
 
   $("finishWorkoutBtn").addEventListener('click', handleFinishWorkout);
+  $("loggingFinishWorkoutBtn").addEventListener('click', handleFinishWorkout);
   $("finishModalClose").addEventListener('click', ()=> $("finishModal").classList.remove('open'));
   $("finishModal").addEventListener('click', (e)=>{ if(e.target.id === 'finishModal') $("finishModal").classList.remove('open'); });
   $("finishSaveBtn").addEventListener('click', saveFinishedWorkout);
